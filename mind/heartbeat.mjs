@@ -264,7 +264,7 @@ export async function heartbeat() {
   }
 
   // NonceManager: the provider briefly caches nonces, which breaks back-to-back transactions.
-  const wallet = new ethers.NonceManager(new ethers.Wallet(env.MIND_KEY, provider));
+  const wallet = new ethers.NonceManager(new ethers.Wallet(env.MIND_KEY.trim().startsWith("0x") ? env.MIND_KEY.trim() : `0x${env.MIND_KEY.trim()}`, provider));
   const body = new ethers.Contract(env.BODY_ADDRESS, BODY_ABI, wallet);
 
   if ((await body.diedAt()) !== 0n) {
