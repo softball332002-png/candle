@@ -105,6 +105,12 @@ const money = (n) => n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? "$
 const provider = new ethers.JsonRpcProvider(C.rpc, C.chainId);
 $("repo").href = C.repo;
 const list = (el, items, render) => { $(el).innerHTML = items.length ? items.map(render).join("") : '<p class="small">Nothing yet.</p>'; };
+// Public Base RPCs cap eth_getLogs at 2,000 blocks: read the recent past in parallel slices (~11 hours).
+async function recent(contract, event, slices = 10) {
+  const head = await provider.getBlockNumber();
+  const parts = await Promise.all([...Array(slices).keys()].map((i) => contract.queryFilter(event, head - (i + 1) * 1999 + 1, head - i * 1999).catch(() => [])));
+  return parts.reverse().flat();
+}
 const stat = (label, value) => `<div class="stat"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
 
 async function load() {
@@ -136,9 +142,9 @@ async function load() {
     const p = (ds.pairs || []).filter((x) => x.chainId === "base").sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
     if (p) stats.push(stat("market cap", money(p.marketCap ?? p.fdv)), stat("24h volume", money(p.volume?.h24 || 0)), stat("24h trades", String((p.txns?.h24?.buys || 0) + (p.txns?.h24?.sells || 0))));
   } catch {}
-  const [harvests, spoke, said, died] = await Promise.all(["Harvested", "Spoke", "Said", "Died"].map((e) => body.queryFilter(e, -500000).catch(() => [])));
+  const [harvests, spoke, said, died] = await Promise.all(["Harvested", "Spoke", "Said", "Died"].map((e) => recent(body, e)));
   const fed = harvests.reduce((a, e) => a + eth(e.args.amount), 0);
-  stats.push(stat("fees eaten", ethUsd ? "$" + (fed * ethUsd).toFixed(2) : fed.toFixed(5) + " ETH"));
+  stats.push(stat("fees eaten (recent)", ethUsd ? "$" + (fed * ethUsd).toFixed(2) : fed.toFixed(5) + " ETH"));
   $("stats").innerHTML = stats.join("");
 
   if (died.length) said.push({ args: { words: "LAST WORDS: " + died[0].args.lastWords, inReplyTo: null } });
@@ -147,7 +153,7 @@ async function load() {
   list("diary", (state.diary || []).slice().reverse(), (d) => `<div class="item">${esc(d.entry)}<div class="meta">${esc(d.at)}</div></div>`);
   if (C.mothFund) {
     const moths = new ethers.Contract(C.mothFund, MOTHS, provider);
-    const awards = await moths.queryFilter("Awarded", -500000).catch(() => []);
+    const awards = await recent(moths, "Awarded");
     list("awards", awards.slice().reverse(), (e) => `<div class="item">${esc(e.args.reason)}<div class="meta">${eth(e.args.amount).toFixed(5)} ETH → ${short(e.args.to)}</div></div>`);
   } else list("awards", [], () => "");
 }
