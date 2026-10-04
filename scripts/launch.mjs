@@ -31,8 +31,14 @@ const art = (name) => {
   return JSON.parse(fs.readFileSync(p, "utf8"));
 };
 
+// MetaMask exports private keys without the 0x prefix; accept either, and stray whitespace.
+export const normalizeKey = (key) => {
+  const k = String(key).trim();
+  return k.startsWith("0x") ? k : `0x${k}`;
+};
+
 export function clients(rpcUrl, key) {
-  const account = privateKeyToAccount(key);
+  const account = privateKeyToAccount(normalizeKey(key));
   const transport = http(rpcUrl, { timeout: 120_000 });
   const publicClient = createPublicClient({ chain: base, transport });
   const wallet = createWalletClient({ account, chain: base, transport });
