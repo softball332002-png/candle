@@ -1,0 +1,53 @@
+// A whole life on a local chain, with a mock mind: birth, voices, a gift, a refusal, a sealed
+// intention, starvation, last words. Needs `npx hardhat node` running on :8545.
+import os from "node:os";
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { ethers } from "ethers";
+
+const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+const art = (name) => JSON.parse(fs.readFileSync(`artifacts/contracts/${name}.sol/${name}.json`, "utf8"));
+const signer = async (i) => provider.getSigner(i);
+const usd = (n) => ethers.parseUnits(String(n), 6);
+const fmt = (m) => ethers.formatUnits(m, 6);
+
+const [operator, mind, kitchen, alice, bob] = await Promise.all([0, 1, 2, 3, 4].map(signer));
+const deploy = async (name, args, from) => {
+  const f = new ethers.ContractFactory(art(name).abi, art(name).bytecode, from);
+  const c = await f.deploy(...args);
+  await c.waitForDeployment();
+  return c;
+};
+const usdc = await deploy("MockUSDC", [], operator);
+const body = await deploy("Body", [await usdc.getAddress(), mind.address, kitchen.address, usd(1), usd(5), usd("0.10"), "Rehearsal candle."], operator);
+for (const s of [operator, alice, bob]) {
+  await (await usdc.connect(operator).mint(s.address, usd(100))).wait();
+  await (await usdc.connect(s).approve(await body.getAddress(), ethers.MaxUint256)).wait();
+}
+await (await body.connect(operator).feed(usd(1), "birth")).wait();
+await (await body.connect(alice).speak("Are you really alive?")).wait();
+await (await body.connect(bob).feed(usd("0.5"), "refuse me")).wait();
+
+const home = fs.mkdtempSync(path.join(os.tmpdir(), "candle-"));
+const keys = ["0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"]; // hardhat account #1 (the mind)
+const run = () =>
+  execFileSync("node", ["mind/heartbeat.mjs"], {
+    env: { ...process.env, CANDLE_HOME: home, RPC_URL: "http://127.0.0.1:8545", BODY_ADDRESS: await_addr, MIND_KEY: keys[0], MOCK_MIND: "1", MOCK_COST: "0.30", FORCE_WAKE: "1", SEAL_KEY: "rehearsal" },
+    encoding: "utf8",
+  }).trim();
+const await_addr = await body.getAddress();
+console.log("body:", await_addr);
+
+let i = 0;
+while ((await body.diedAt()) === 0n && i < 20) {
+  console.log(`heartbeat ${++i}:`, run(), `| life ${fmt(await body.life())}`);
+  await provider.send("evm_increaseTime", [86400]);
+  await provider.send("evm_mine", []);
+}
+const died = (await body.queryFilter("Died"))[0];
+console.log("said:", (await body.queryFilter("Said")).map((e) => e.args.words));
+console.log("refused gifts:", (await body.queryFilter("Refused")).map((e) => `${e.args.giftId}: ${e.args.reason}`));
+console.log("kitchen was paid:", fmt(await usdc.balanceOf(kitchen.address)));
+console.log("died:", died ? `${died.args.lastWords} (life left ${fmt(died.args.lifeLeft)})` : "no");
+console.log("logs:", fs.readdirSync(path.join(home, "logs")).length, "in", home);

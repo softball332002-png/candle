@@ -1,0 +1,31 @@
+# The candle's pulse. Wakes every hour; the mind decides how long it actually sleeps,
+# so most runs exit immediately without thinking or spending anything.
+# Disabled until birth: set the repository variable CANDLE_ALIVE to "true" to start it.
+name: heartbeat
+on:
+  schedule: [{ cron: "17 * * * *" }]
+  workflow_dispatch:
+concurrency: { group: heartbeat, cancel-in-progress: false }
+permissions: { contents: write }
+jobs:
+  beat:
+    if: vars.CANDLE_ALIVE == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: node mind/heartbeat.mjs
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+          BODY_ADDRESS: ${{ vars.BODY_ADDRESS }}
+          MIND_KEY: ${{ secrets.MIND_KEY }}
+          SEAL_KEY: ${{ secrets.SEAL_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Publish the thought log
+        run: |
+          git config user.name "candle"
+          git config user.email "candle@users.noreply.github.com"
+          git add logs state
+          git diff --cached --quiet || (git commit -m "heartbeat" && git push)
