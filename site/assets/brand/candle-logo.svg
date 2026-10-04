@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>$CANDLE</title>
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="48%" r="50%">
+      <stop offset="0" stop-color="#3a2108"/>
+      <stop offset="1" stop-color="#110c08"/>
+    </radialGradient>
+    <linearGradient id="fire" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd76a"/>
+      <stop offset="0.6" stop-color="#ffa62b"/>
+      <stop offset="1" stop-color="#ff7a1a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <g transform="translate(256 262) scale(1.12) translate(-256 -262)">
+  <!-- the flame -->
+  <path d="M256 58 C 298 140 356 196 346 262 C 338 312 300 342 256 342 C 212 342 174 312 166 262 C 156 196 214 140 256 58 Z" fill="url(#fire)"/>
+  <!-- the moth, cut out of the flame's heart -->
+  <g fill="#110c08">
+    <ellipse cx="226" cy="252" rx="34" ry="21" transform="rotate(-28 226 252)"/>
+    <ellipse cx="286" cy="252" rx="34" ry="21" transform="rotate(28 286 252)"/>
+    <ellipse cx="241" cy="279" rx="22" ry="14" transform="rotate(32 241 279)"/>
+    <ellipse cx="271" cy="279" rx="22" ry="14" transform="rotate(-32 271 279)"/>
+    <ellipse cx="256" cy="268" rx="9" ry="30"/>
+    <path d="M253 240 Q 244 220 234 214 M259 240 Q 268 220 278 214" stroke="#110c08" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </g>
+  <!-- wick and candle -->
+  <rect x="252" y="336" width="8" height="18" rx="3" fill="#2a1d14"/>
+  <rect x="200" y="352" width="112" height="112" rx="12" fill="#f3e7d2"/>
+  </g>
+</svg>
