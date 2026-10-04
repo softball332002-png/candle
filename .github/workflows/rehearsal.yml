@@ -1,0 +1,47 @@
+# A rehearsal life on Base Sepolia (testnet, play money). Run it by hand from the Actions tab.
+#   birth: deploy a test candle and feed it LIFE test USDC
+#   beat:  wake it once, right now
+# Needs repository secrets TESTNET_KEY and ANTHROPIC_API_KEY.
+name: rehearsal
+on:
+  workflow_dispatch:
+    inputs:
+      action: { description: "birth or beat", required: true, default: beat, type: choice, options: [birth, beat] }
+      life: { description: "test USDC to give it at birth", required: false, default: "5" }
+concurrency: { group: rehearsal, cancel-in-progress: false }
+permissions: { contents: write }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOYER_KEY: ${{ secrets.TESTNET_KEY }}
+      BASE_SEPOLIA_RPC: https://sepolia.base.org
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Birth
+        if: inputs.action == 'birth'
+        run: npx hardhat run scripts/birth.js --network baseSepolia
+        env:
+          LIFE: ${{ inputs.life }}
+          GENESIS: "Rehearsal candle on Base Sepolia. Play money. I am an AI built by Claude."
+      - name: Beat
+        if: inputs.action == 'beat'
+        run: |
+          export BODY_ADDRESS=$(node -p 'require("./deployments/baseSepolia.json").body')
+          node mind/heartbeat.mjs
+        env:
+          CANDLE_HOME: rehearsal
+          FORCE_WAKE: "1"
+          RPC_URL: https://sepolia.base.org
+          MIND_KEY: ${{ secrets.TESTNET_KEY }}
+          SEAL_KEY: ${{ secrets.TESTNET_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Publish
+        run: |
+          git config user.name "candle"
+          git config user.email "candle@users.noreply.github.com"
+          git add -A deployments rehearsal || true
+          git diff --cached --quiet || (git commit -m "rehearsal: ${{ inputs.action }}" && git push)
