@@ -9,7 +9,9 @@ on:
   push:
     branches: ["launch-*"]
     paths: ["contracts/**", "scripts/launch.mjs", "scripts/fork-rehearse.mjs", ".github/workflows/fork-rehearsal.yml"]
-concurrency: { group: fork-rehearsal-${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: fork-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
 permissions: { contents: read }
 jobs:
   rehearse:
