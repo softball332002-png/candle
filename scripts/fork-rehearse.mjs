@@ -230,7 +230,19 @@ note(`no trading: the flame ate ${meals} meals over ${days} days and is starving
 
 // one more burst of trading brings it back
 for (const t of traders.slice(0, 3)) await swap(t, WETH, parseEther("0.5"));
-await send(launcher, { address: locker, abi: LOCKER, functionName: "collectRewards", args: [token] });
+try {
+  await send(launcher, { address: locker, abi: LOCKER, functionName: "collectRewards", args: [token] });
+} catch (e) {
+  note(`collectRewards failed after a long quiet spell: ${e.shortMessage || e.message}`.slice(0, 300));
+  try {
+    const { execSync } = await import("node:child_process");
+    const trace = execSync(`cast call ${locker} "collectRewards(address)" ${token} --from ${launcher.account.address} --trace --rpc-url ${RPC} 2>&1 || true`, { encoding: "utf8" });
+    note("trace (last 60 lines):\n" + trace.split("\n").slice(-60).join("\n"));
+  } catch (t) {
+    note(`no trace: ${t.message}`);
+  }
+  throw e;
+}
 await send(someone, { address: body, abi: d.bodyAbi, functionName: "harvest" });
 const since = await read(body, d.bodyAbi, "starvingSince");
 note(`after 1.5 WETH of new buys, life is ${fmt(await read(body, d.bodyAbi, "life"))} WETH; starving: ${since !== 0n}`);
