@@ -176,6 +176,40 @@ for (const k of ["founder", "body", "moths"]) {
 }
 note(`creator fees were ${((Number(total) / Number(volumeWeth)) * 100).toFixed(3)}% of WETH volume`);
 
+// ------------------------------------------------------------------ 3b. the flame wakes on the fork
+// The real heartbeat: harvests fees itself, thinks (Claude if ANTHROPIC_API_KEY is set, else a mock),
+// replies, queues draft posts (never published from a rehearsal), and pays for its thinking.
+for (const t of traders.slice(0, 4)) await swap(t, WETH, parseEther((0.2 + rand()).toFixed(3)));
+const FEED = "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"; // Chainlink ETH/USD on Base
+let priceEnv = { PRICE_FEED: FEED };
+try {
+  const [, answer] = await read(FEED, [{ type: "function", name: "latestRoundData", stateMutability: "view", inputs: [], outputs: [{ type: "uint80" }, { type: "int256" }, { type: "uint256" }, { type: "uint256" }, { type: "uint80" }] }], "latestRoundData");
+  note(`Chainlink ETH/USD on Base reads $${(Number(answer) / 1e8).toFixed(2)}`);
+} catch {
+  priceEnv = { FOOD_USD: "2500" };
+  note("Chainlink ETH/USD feed did not answer at the expected address; pricing ETH at $2500 for this rehearsal");
+}
+await send(traders[6], {
+  address: body, abi: [{ type: "function", name: "speak", stateMutability: "nonpayable", inputs: [{ type: "string" }], outputs: [{ type: "uint256" }] }],
+  functionName: "speak", args: ["[rehearsal test voice] gm flame. how bright are you burning today?"],
+});
+Object.assign(process.env, {
+  RPC_URL: RPC, BODY_ADDRESS: body, MIND_KEY: MIND, SEAL_KEY: "rehearsal-only-seal-key",
+  TOKEN: token, CLANKER_LOCKER: locker, MOTH_FUND: mothFund, MARKET_DATA: "0", FORCE_WAKE: "1",
+  CANDLE_HOME: `${OUT}/mind`, ...priceEnv,
+  ...(process.env.ANTHROPIC_API_KEY ? {} : { MOCK_MIND: "1" }),
+});
+const { heartbeat } = await import("../mind/heartbeat.mjs");
+for (let i = 0; i < 2; i++) {
+  const r = await heartbeat();
+  const logFile = JSON.parse(fs.readFileSync(`${OUT}/mind/logs/${r.log}`, "utf8"));
+  note(`waking ${i + 1}: flame ${logFile.situation.flame.state}, ate $${logFile.situation.tradingFeesEatenSinceLastWakingUsd} of fees, thought cost $${logFile.costs.inferenceUsd.toFixed(4)}`);
+  note(`  diary: ${logFile.decision.diary}`);
+  for (const p of logFile.posts || []) note(`  draft post: ${p}`);
+  for (const t of r.txs) note(`  tx ${t.label}: ${t.error ? "FAILED " + t.error : "ok"}`);
+  await advance(6 * 3600);
+}
+
 // ------------------------------------------------------------------ 4. trading stops; the flame eats until it starves
 const mind = clients(RPC, MIND);
 const caps = d.caps;

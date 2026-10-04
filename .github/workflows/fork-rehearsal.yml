@@ -8,7 +8,7 @@ on:
       rounds: { description: "simulated trades", required: false, default: "40" }
   push:
     branches: ["launch-*"]
-    paths: ["contracts/**", "scripts/launch.mjs", "scripts/fork-rehearse.mjs", ".github/workflows/fork-rehearsal.yml"]
+    paths: ["contracts/**", "mind/**", "scripts/launch.mjs", "scripts/fork-rehearse.mjs", ".github/workflows/fork-rehearsal.yml"]
 concurrency:
   group: fork-rehearsal-${{ github.ref }}
   cancel-in-progress: true
@@ -36,6 +36,7 @@ jobs:
         env:
           ROUNDS: ${{ inputs.rounds || '40' }}
           OUT_DIR: rehearsal/fork
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - if: always()
         uses: actions/upload-artifact@v4
         with: { name: fork-rehearsal, path: rehearsal/fork, if-no-files-found: ignore }
