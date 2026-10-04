@@ -38,7 +38,7 @@ const home = process.env.CANDLE_HOME || fs.mkdtempSync(path.join(os.tmpdir(), "c
 const keys = ["0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"]; // hardhat account #1 (the mind)
 const run = () =>
   execFileSync("node", ["mind/heartbeat.mjs"], {
-    env: { ...process.env, CANDLE_HOME: home, RPC_URL: "http://127.0.0.1:8545", BODY_ADDRESS: await_addr, MIND_KEY: keys[0], MOCK_MIND: real ? "0" : "1", MOCK_COST: "0.30", FORCE_WAKE: "1", SEAL_KEY: "rehearsal" },
+    env: { ...process.env, CANDLE_HOME: home, RPC_URL: "http://127.0.0.1:8545", BODY_ADDRESS: await_addr, MIND_KEY: keys[0], MOCK_MIND: real ? "0" : "1", MOCK_COST: "0.30", SEAL_KEY: "rehearsal" },
     encoding: "utf8",
   }).trim();
 const await_addr = await body.getAddress();
@@ -48,7 +48,10 @@ let i = 0;
 const max = Number(process.env.HEARTBEATS || 20);
 while ((await body.diedAt()) === 0n && i < max) {
   console.log(`heartbeat ${++i}:`, run(), `| life ${fmt(await body.life())}`);
-  await provider.send("evm_increaseTime", [86400]);
+  // Let it sleep exactly as long as it asked to.
+  const { nextWakeAt } = JSON.parse(fs.readFileSync(path.join(home, "state", "state.json"), "utf8"));
+  const { timestamp } = await provider.getBlock("latest");
+  await provider.send("evm_increaseTime", [Math.max(1, nextWakeAt - timestamp)]);
   await provider.send("evm_mine", []);
 }
 const died = (await body.queryFilter("Died"))[0];

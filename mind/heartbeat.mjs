@@ -178,13 +178,14 @@ async function think(situation) {
 
 export async function heartbeat() {
   const state = readJson(STATE, { lastBlock: null, nextWakeAt: 0, owedMicros: "0", diary: [], wakings: 0 });
-  const now = Math.floor(Date.now() / 1000);
+  const provider = new ethers.JsonRpcProvider(env.RPC_URL);
+  // The candle lives on chain time, so its sense of "now" and its sleep agree with the Body's.
+  const now = (await provider.getBlock("latest")).timestamp;
   if (env.FORCE_WAKE !== "1" && now < state.nextWakeAt) {
     console.log(`asleep until ${new Date(state.nextWakeAt * 1000).toISOString()}`);
     return { slept: true };
   }
 
-  const provider = new ethers.JsonRpcProvider(env.RPC_URL);
   // NonceManager: the provider briefly caches nonces, which breaks back-to-back transactions.
   const wallet = new ethers.NonceManager(new ethers.Wallet(env.MIND_KEY, provider));
   const body = new ethers.Contract(env.BODY_ADDRESS, BODY_ABI, wallet);
