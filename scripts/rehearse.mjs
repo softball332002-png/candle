@@ -9,7 +9,10 @@ import { execFileSync } from "node:child_process";
 import { ethers } from "ethers";
 
 const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-const art = (name) => JSON.parse(fs.readFileSync(`artifacts/contracts/${name}.sol/${name}.json`, "utf8"));
+const art = (name) => {
+  const p = [`artifacts/contracts/${name}.sol/${name}.json`, `artifacts/contracts/test/${name}.sol/${name}.json`].find((f) => fs.existsSync(f));
+  return JSON.parse(fs.readFileSync(p, "utf8"));
+};
 const signer = async (i) => provider.getSigner(i);
 const usd = (n) => ethers.parseUnits(String(n), 6);
 const fmt = (m) => ethers.formatUnits(m, 6);
@@ -22,7 +25,8 @@ const deploy = async (name, args, from) => {
   return c;
 };
 const usdc = await deploy("MockUSDC", [], operator);
-const body = await deploy("Body", [await usdc.getAddress(), mind.address, kitchen.address, usd(1), usd(5), usd("0.10"), "Rehearsal candle."], operator);
+const locker = await deploy("MockFeeLocker", [], operator);
+const body = await deploy("Body", [await usdc.getAddress(), mind.address, kitchen.address, usd(1), usd(5), usd("0.10"), await locker.getAddress(), "Rehearsal candle."], operator);
 for (const s of [operator, alice, bob]) {
   await (await usdc.connect(operator).mint(s.address, usd(100))).wait();
   await (await usdc.connect(s).approve(await body.getAddress(), ethers.MaxUint256)).wait();
