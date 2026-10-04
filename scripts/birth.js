@@ -1,4 +1,4 @@
-// Deploy a Body and give it its first life. Usage:
+// Deploy a Body on a live network and give it its first life. Usage:
 //   GENESIS="..." LIFE=5 npx hardhat run scripts/birth.js --network baseSepolia
 // The deployer key is also the mind and the kitchen unless MIND / KITCHEN are set.
 // Writes deployments/<network>.json.

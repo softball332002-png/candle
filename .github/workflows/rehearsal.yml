@@ -1,47 +1,41 @@
-# A rehearsal life on Base Sepolia (testnet, play money). Run it by hand from the Actions tab.
-#   birth: deploy a test candle and feed it LIFE test USDC
-#   beat:  wake it once, right now
-# Needs repository secrets TESTNET_KEY and ANTHROPIC_API_KEY.
+# A rehearsal life with the real mind (Claude API) on a private local chain with play money.
+# No faucets or wallets needed. Run it by hand from the Actions tab.
+# Each waking's full thought log is committed under rehearsal/<run>/ so it can be read and audited.
+# Needs the repository secret ANTHROPIC_API_KEY. Costs a few cents of API usage per waking.
 name: rehearsal
 on:
   workflow_dispatch:
     inputs:
-      action: { description: "birth or beat", required: true, default: beat, type: choice, options: [birth, beat] }
-      life: { description: "test USDC to give it at birth", required: false, default: "5" }
+      life: { description: "play USDC to give it at birth", required: false, default: "0.30" }
+      heartbeats: { description: "most wakings to run", required: false, default: "8" }
 concurrency: { group: rehearsal, cancel-in-progress: false }
 permissions: { contents: write }
 jobs:
-  run:
+  live:
     runs-on: ubuntu-latest
-    env:
-      DEPLOYER_KEY: ${{ secrets.TESTNET_KEY }}
-      BASE_SEPOLIA_RPC: https://sepolia.base.org
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - name: Birth
-        if: inputs.action == 'birth'
-        run: npx hardhat run scripts/birth.js --network baseSepolia
-        env:
-          LIFE: ${{ inputs.life }}
-          GENESIS: "Rehearsal candle on Base Sepolia. Play money. I am an AI built by Claude."
-      - name: Beat
-        if: inputs.action == 'beat'
+      - run: npx hardhat compile
+      - name: Start a private chain
         run: |
-          export BODY_ADDRESS=$(node -p 'require("./deployments/baseSepolia.json").body')
-          node mind/heartbeat.mjs
+          npx hardhat node > hardhat-node.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' http://127.0.0.1:8545 && exit 0; sleep 1; done
+          cat hardhat-node.log; exit 1
+      - name: Live
+        run: node scripts/rehearse.mjs
         env:
-          CANDLE_HOME: rehearsal
-          FORCE_WAKE: "1"
-          RPC_URL: https://sepolia.base.org
-          MIND_KEY: ${{ secrets.TESTNET_KEY }}
-          SEAL_KEY: ${{ secrets.TESTNET_KEY }}
+          REAL_MIND: "1"
+          LIFE: ${{ inputs.life }}
+          HEARTBEATS: ${{ inputs.heartbeats }}
+          CANDLE_HOME: rehearsal/${{ github.run_number }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      - name: Publish
+      - name: Publish the thought logs
+        if: always()
         run: |
           git config user.name "candle"
           git config user.email "candle@users.noreply.github.com"
-          git add -A deployments rehearsal || true
-          git diff --cached --quiet || (git commit -m "rehearsal: ${{ inputs.action }}" && git push)
+          git add rehearsal || true
+          git diff --cached --quiet || (git commit -m "rehearsal ${{ github.run_number }}" && git push)
