@@ -10,6 +10,10 @@ on:
       dev_buy_eth: { description: "disclosed founder buy, ETH", required: true, default: "0.01" }
       life_eth: { description: "starting life for the flame, ETH", required: true, default: "0.018" }
       image: { description: "token image URL", required: false, default: "" }
+      resume_token: { description: "resume only: the already-deployed token", required: false, default: "" }
+      resume_body: { description: "resume only: the already-deployed Body", required: false, default: "" }
+      resume_moth_fund: { description: "resume only: the already-deployed Moth Fund", required: false, default: "" }
+      resume_tx: { description: "resume only: the token deploy transaction", required: false, default: "" }
 concurrency: { group: launch, cancel-in-progress: false }
 permissions: { contents: write }
 jobs:
@@ -38,6 +42,10 @@ jobs:
           LIFE_ETH: ${{ inputs.life_eth }}
           IMAGE: ${{ inputs.image }}
           OUT: deployments/8453.json
+          RESUME_TOKEN: ${{ inputs.resume_token }}
+          RESUME_BODY: ${{ inputs.resume_body }}
+          RESUME_MOTH_FUND: ${{ inputs.resume_moth_fund }}
+          RESUME_TX: ${{ inputs.resume_tx }}
       - name: Point the site at the real contracts
         run: |
           node -e '
