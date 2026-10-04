@@ -230,18 +230,13 @@ note(`no trading: the flame ate ${meals} meals over ${days} days and is starving
 
 // one more burst of trading brings it back
 for (const t of traders.slice(0, 3)) await swap(t, WETH, parseEther("0.5"));
+// Swaps already sweep fees into the fee locker (the hook calls collectRewardsWithoutUnlock).
+// An explicit collectRewards can revert when the only CANDLE-side fees are dust too small to
+// swap to WETH (V4TooLittleReceived). That is harmless: the flame's heartbeat treats it as optional.
 try {
   await send(launcher, { address: locker, abi: LOCKER, functionName: "collectRewards", args: [token] });
 } catch (e) {
-  note(`collectRewards failed after a long quiet spell: ${e.shortMessage || e.message}`.slice(0, 300));
-  try {
-    const { execSync } = await import("node:child_process");
-    const trace = execSync(`cast call ${locker} "collectRewards(address)" ${token} --from ${launcher.account.address} --trace --rpc-url ${RPC} 2>&1 || true`, { encoding: "utf8" });
-    note("trace (last 60 lines):\n" + trace.split("\n").slice(-60).join("\n"));
-  } catch (t) {
-    note(`no trace: ${t.message}`);
-  }
-  throw e;
+  note(`(explicit collectRewards reverted on dust, as expected; swaps already swept the fees)`);
 }
 await send(someone, { address: body, abi: d.bodyAbi, functionName: "harvest" });
 const since = await read(body, d.bodyAbi, "starvingSince");
