@@ -209,6 +209,27 @@ async function think(situation) {
   return { request, response, model: response.model, usage, costUsd, decision: JSON.parse(text) };
 }
 
+// ---------------------------------------------------------------- the chain
+
+// The free public Base RPC rate-limits bursts. Send one request at a time and back off when told to.
+class PatientProvider extends ethers.JsonRpcProvider {
+  constructor(url) {
+    super(url, undefined, { batchMaxCount: 1, staticNetwork: true });
+  }
+  async _send(payload) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await super._send(payload);
+        const limited = res.some((r) => r.error && (r.error.code === -32016 || /rate limit/i.test(r.error.message || "")));
+        if (!limited || attempt >= 6) return res;
+      } catch (err) {
+        if (attempt >= 6 || !/429|rate limit|timeout|ECONNRESET/i.test(String(err.message))) throw err;
+      }
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+    }
+  }
+}
+
 // ---------------------------------------------------------------- the world
 
 async function priceOfFood(provider) {
@@ -255,7 +276,7 @@ function flame({ lifeUsd, starving, meals, now }) {
 
 export async function heartbeat() {
   const state = readJson(STATE, { lastBlock: null, nextWakeAt: 0, owedMicros: "0", diary: [], wakings: 0 });
-  const provider = new ethers.JsonRpcProvider(env.RPC_URL);
+  const provider = new PatientProvider(env.RPC_URL);
   // The candle lives on chain time, so its sense of "now" and its sleep agree with the Body's.
   const now = (await provider.getBlock("latest")).timestamp;
   if (env.FORCE_WAKE !== "1" && now < state.nextWakeAt) {
