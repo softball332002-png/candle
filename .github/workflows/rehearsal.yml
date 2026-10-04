@@ -1,0 +1,41 @@
+# A rehearsal life with the real mind (Claude API) on a private local chain with play money.
+# No faucets or wallets needed. Run it by hand from the Actions tab.
+# Each waking's full thought log is committed under rehearsal/<run>/ so it can be read and audited.
+# Needs the repository secret ANTHROPIC_API_KEY. Costs a few cents of API usage per waking.
+name: rehearsal
+on:
+  workflow_dispatch:
+    inputs:
+      life: { description: "play USDC to give it at birth", required: false, default: "0.30" }
+      heartbeats: { description: "most wakings to run", required: false, default: "8" }
+concurrency: { group: rehearsal, cancel-in-progress: false }
+permissions: { contents: write }
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx hardhat compile
+      - name: Start a private chain
+        run: |
+          npx hardhat node > hardhat-node.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' http://127.0.0.1:8545 && exit 0; sleep 1; done
+          cat hardhat-node.log; exit 1
+      - name: Live
+        run: node scripts/rehearse.mjs
+        env:
+          REAL_MIND: "1"
+          LIFE: ${{ inputs.life }}
+          HEARTBEATS: ${{ inputs.heartbeats }}
+          CANDLE_HOME: rehearsal/${{ github.run_number }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Publish the thought logs
+        if: always()
+        run: |
+          git config user.name "candle"
+          git config user.email "candle@users.noreply.github.com"
+          git add rehearsal || true
+          git diff --cached --quiet || (git commit -m "rehearsal ${{ github.run_number }}" && git push)
