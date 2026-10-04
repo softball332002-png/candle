@@ -32,7 +32,10 @@ jobs:
           for i in $(seq 1 90); do curl -s -o /dev/null -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' http://127.0.0.1:8545 && exit 0; sleep 1; done
           cat anvil.log; exit 1
       - name: Rehearse the launch
-        run: node scripts/fork-rehearse.mjs
+        run: |
+          set -o pipefail
+          mkdir -p rehearsal/fork
+          node scripts/fork-rehearse.mjs 2>&1 | tee rehearsal/fork/run.log
         env:
           ROUNDS: ${{ inputs.rounds || '40' }}
           OUT_DIR: rehearsal/fork
@@ -42,4 +45,7 @@ jobs:
         with: { name: fork-rehearsal, path: rehearsal/fork, if-no-files-found: ignore }
       - if: always()
         name: Report
-        run: cat rehearsal/fork/report.txt || true
+        run: |
+          cat rehearsal/fork/report.txt || true
+          echo "---- errors ----"
+          grep -nE "Error|error:|revert|FAILED|at file" rehearsal/fork/run.log | grep -v "^.*DeprecationWarning" | head -30 || true

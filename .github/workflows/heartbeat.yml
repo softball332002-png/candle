@@ -18,8 +18,12 @@ jobs:
       - run: npm ci
       - run: node mind/heartbeat.mjs
         env:
-          RPC_URL: ${{ secrets.RPC_URL }}
+          RPC_URL: ${{ secrets.RPC_URL || 'https://mainnet.base.org' }}
           BODY_ADDRESS: ${{ vars.BODY_ADDRESS }}
+          TOKEN: ${{ vars.TOKEN }}
+          MOTH_FUND: ${{ vars.MOTH_FUND }}
+          CLANKER_LOCKER: "0xffA37784D619F228D8B379d287a4D7282e500762"
+          PRICE_FEED: "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"
           MIND_KEY: ${{ secrets.MIND_KEY }}
           SEAL_KEY: ${{ secrets.SEAL_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -27,5 +31,5 @@ jobs:
         run: |
           git config user.name "candle"
           git config user.email "candle@users.noreply.github.com"
-          git add logs state
+          git add logs state outbox 2>/dev/null || git add logs state
           git diff --cached --quiet || (git commit -m "heartbeat" && git push)
