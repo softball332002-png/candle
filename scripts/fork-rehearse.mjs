@@ -31,11 +31,11 @@ const KEYS = [
 const addr = (k) => privateKeyToAccount(k).address;
 const [LAUNCHER, FOUNDER, MIND, KITCHEN, ...TRADERS] = KEYS;
 
-const log = [];
+fs.writeFileSync(`${OUT}/report.txt`, "");
 const note = (msg, data) => {
   const line = data === undefined ? msg : `${msg} ${JSON.stringify(data, (_, v) => (typeof v === "bigint" ? v.toString() : v))}`;
   console.log(line);
-  log.push(line);
+  fs.appendFileSync(`${OUT}/report.txt`, line + "\n");
 };
 const fmt = (w) => Number(formatEther(w)).toFixed(6);
 
@@ -69,6 +69,8 @@ const send = async (c, tx) => {
   return r;
 };
 const read = (address, abi, functionName, args = []) => pub.readContract({ address, abi, functionName, args });
+
+for (const k of KEYS) await rpc("anvil_setBalance", [addr(k), "0x" + parseEther("1000").toString(16)]);
 
 // ------------------------------------------------------------------ 1. launch
 note(`fork chain id ${await pub.getChainId()}, block ${await pub.getBlockNumber()}`);
@@ -212,5 +214,4 @@ while ((await read(body, d.bodyAbi, "life")) >= BigInt(caps.floor)) {
 await send(mind, { address: body, abi: d.bodyAbi, functionName: "die", args: ["[rehearsal] the moths went home. thank you for the light.", "0x"] });
 note(`the flame died: alive=${await read(body, d.bodyAbi, "isAlive")}`);
 
-fs.writeFileSync(`${OUT}/report.txt`, log.join("\n") + "\n");
 console.log(`\nREHEARSAL PASSED. Report: ${OUT}/report.txt`);
