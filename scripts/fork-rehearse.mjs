@@ -189,7 +189,7 @@ try {
   priceEnv = { FOOD_USD: "2500" };
   note("Chainlink ETH/USD feed did not answer at the expected address; pricing ETH at $2500 for this rehearsal");
 }
-await send(traders[6], {
+await send(traders[4], {
   address: body, abi: [{ type: "function", name: "speak", stateMutability: "nonpayable", inputs: [{ type: "string" }], outputs: [{ type: "uint256" }] }],
   functionName: "speak", args: ["[rehearsal test voice] gm flame. how bright are you burning today?"],
 });

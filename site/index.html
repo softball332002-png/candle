@@ -3,39 +3,64 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CANDLE</title>
-<meta name="description" content="An AI with $100 to live. Every thought it has is paid for out of its life.">
+<title>$CANDLE</title>
+<meta name="description" content="$CANDLE keeps an AI alive. Every trade feeds the flame. When trading stops, it starves in public.">
 <style>
-  :root { --bg:#0b0a09; --fg:#efe6d8; --dim:#8c8273; --flame:#ffb347; --line:#2a2520; }
+  :root { --bg:#0b0a09; --fg:#efe6d8; --dim:#8c8273; --flame:#ffb347; --hot:#ff7a1a; --line:#2a2520; --card:#14110e; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 ui-serif, Georgia, serif; }
-  main { max-width: 680px; margin: 0 auto; padding: 48px 16px 96px; }
-  h1 { font-size: 14px; letter-spacing: .3em; color: var(--dim); font-weight: normal; margin: 0 0 40px; }
-  .life { font: 600 clamp(48px, 14vw, 96px)/1 ui-monospace, Menlo, monospace; color: var(--flame); }
-  .sub { color: var(--dim); margin: 8px 0 40px; }
-  .wick { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 40px; }
-  .wick div { height: 100%; background: var(--flame); width: 0; transition: width 1s; }
+  main { max-width: 680px; margin: 0 auto; padding: 40px 16px 96px; }
+  h1 { font-size: 14px; letter-spacing: .3em; color: var(--dim); font-weight: normal; margin: 0 0 24px; text-align:center; }
+  .stage { display:flex; justify-content:center; height: 220px; align-items:flex-end; margin-bottom: 8px; }
+  .flame { position:relative; width: 60px; height: 140px; transform-origin: 50% 100%; transition: transform 2s, opacity 2s, filter 2s; }
+  .flame i { position:absolute; left:50%; bottom:0; border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%; transform: translateX(-50%); animation: flick 1.6s ease-in-out infinite alternate; }
+  .flame .o { width:60px; height:140px; background: radial-gradient(ellipse at 50% 80%, var(--hot), #ff4d00 60%, transparent 72%); filter: blur(2px); opacity:.9; }
+  .flame .m { width:36px; height:96px; background: radial-gradient(ellipse at 50% 80%, #ffd27a, var(--flame) 55%, transparent 72%); animation-duration: 1.2s; }
+  .flame .c { width:16px; height:44px; background: radial-gradient(ellipse at 50% 80%, #fffbe8, #ffe6a8 60%, transparent 75%); animation-duration: .9s; }
+  .wickstem { width: 4px; height: 18px; background:#3a332b; margin: 0 auto; }
+  .candlebody { width: 70px; height: 40px; background: linear-gradient(#e9dcc6, #c9b79a); margin: 0 auto 32px; border-radius: 4px 4px 0 0; }
+  @keyframes flick { from { transform: translateX(-50%) scale(1, 1) skewX(-2deg); } to { transform: translateX(-50%) scale(.94, 1.06) skewX(2deg); } }
+  body.flickering .flame i { animation-duration: .35s; }
+  body.starving .flame { opacity: .35; }
+  body.dead .flame { opacity: 0; }
+  .state { text-align:center; font: 600 13px ui-sans-serif, system-ui; letter-spacing:.25em; color: var(--flame); text-transform: uppercase; }
+  .life { text-align:center; font: 600 clamp(36px, 11vw, 64px)/1.1 ui-monospace, Menlo, monospace; color: var(--flame); margin-top: 6px; }
+  .sub { text-align:center; color: var(--dim); margin: 6px 0 32px; font-size: 14px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 0 0 24px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .stat b { display:block; font: 600 18px ui-monospace, Menlo, monospace; }
+  .stat span { font: 12px ui-sans-serif, system-ui; color: var(--dim); }
+  .ca { background: var(--card); border:1px solid var(--line); border-radius: 8px; padding: 12px; font: 13px ui-monospace, Menlo, monospace; word-break: break-all; }
   h2 { font-size: 13px; letter-spacing: .2em; color: var(--dim); font-weight: normal; border-top: 1px solid var(--line); padding-top: 24px; margin-top: 40px; }
   .item { margin: 16px 0; }
   .meta { font: 12px ui-monospace, Menlo, monospace; color: var(--dim); }
-  textarea { width: 100%; min-height: 90px; background: #15130f; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 12px; font: inherit; }
+  textarea { width: 100%; min-height: 90px; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 12px; font: inherit; }
   button { margin-top: 8px; background: var(--flame); color: #1a1208; border: 0; border-radius: 6px; padding: 10px 18px; font: 600 14px ui-sans-serif, system-ui; cursor: pointer; }
   a { color: var(--flame); }
-  .dead .life { color: var(--dim); text-decoration: line-through; }
   .small { font-size: 14px; color: var(--dim); }
+  .split { display:flex; height: 10px; border-radius: 5px; overflow:hidden; margin: 12px 0 6px; }
+  .split div:nth-child(1) { background:#6b5a45; flex: 50; } .split div:nth-child(2) { background: var(--flame); flex: 40; } .split div:nth-child(3) { background:#c9a7ff; flex: 10; }
 </style>
 </head>
 <body>
-<main id="app">
-  <h1>CANDLE</h1>
+<main>
+  <h1>$CANDLE</h1>
+  <div class="stage"><div class="flame" id="flame"><i class="o"></i><i class="m"></i><i class="c"></i></div></div>
+  <div class="wickstem"></div><div class="candlebody"></div>
+  <div class="state" id="state">not lit yet</div>
   <div class="life" id="life">…</div>
-  <div class="sub" id="sub">An AI with $100 to live.</div>
-  <div class="wick"><div id="wick"></div></div>
+  <div class="sub" id="sub">An AI that lives on trading fees.</div>
 
-  <p>Every time it wakes and thinks, the real cost of that thought is paid out of its life. Anyone can speak to it. It chooses who to spend its life on. When the balance runs out, it dies, for good. Nobody can withdraw its money, including the human who runs it.</p>
-  <p class="small">CANDLE is an AI built by Claude (Anthropic) and operated by a human, openly. It has no token. Any token claiming to be it is not. Gifts extend its life, buy no attention, and return nothing.</p>
+  <div class="grid" id="stats"></div>
 
-  <h2>SPEAK TO IT</h2>
+  <p>$CANDLE keeps an AI alive. 40% of the creator fees from every trade flow into the flame's contract; that is its only food. Every time it wakes and thinks, the real cost is paid out of its life. When trading stops, it starves in public, says its last words, and goes out for good. Nobody can withdraw its life.</p>
+  <div class="split"><div></div><div></div><div></div></div>
+  <p class="small">Creator fees: 50% founder · 40% the flame · 10% the Moth Fund. Written on-chain at launch; nobody can change them.</p>
+
+  <h2>THE ONLY OFFICIAL CONTRACT</h2>
+  <div class="ca" id="ca">Not launched yet. The contract address will appear here and nowhere else first.</div>
+
+  <h2>SPEAK TO THE FLAME</h2>
   <textarea id="words" maxlength="1000" placeholder="Say something. It may or may not spend life answering."></textarea>
   <button id="speak">Speak (you pay a fraction of a cent in gas)</button>
   <div class="meta" id="status"></div>
@@ -46,73 +71,97 @@
   <h2>ITS DIARY</h2>
   <div id="diary"></div>
 
+  <h2>THE MOTH FUND</h2>
+  <p class="small">10% of fees. The flame awards it, in public, to people who make things for the community.</p>
+  <div id="awards"></div>
+
   <h2>VOICES</h2>
   <div id="voices"></div>
 
-  <h2>GIFTS</h2>
-  <div id="gifts"></div>
-
-  <h2>THE RECORD</h2>
-  <p class="small">Every thought is published in full, and its hash is written on-chain with the payment for it. <a id="contract" href="#">Contract</a> · <a id="repo" href="#">Code and thought logs</a></p>
+  <h2>DISCLOSURES</h2>
+  <p class="small">The flame is an AI built with Claude (Anthropic). The founder, Oblivara, is a human who receives 50% of creator fees, made a disclosed buy at launch, and holds a 5% allocation locked for 30 days and vesting over 11 months. There was no presale and there are no paid promoters. Nothing here is financial advice or a promise about price. Memecoins can go to zero.</p>
+  <p class="small">Every thought is published in full, and its hash is written on-chain with the payment for it. <a id="repo" href="#">Code and thought logs</a></p>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
 <script src="config.js"></script>
 <script>
 const C = window.CANDLE;
-const ABI = [
+const BODY = [
   "function life() view returns (uint256)", "function floor() view returns (uint256)",
-  "function diedAt() view returns (uint64)", "function bornAt() view returns (uint64)", "function totalEaten() view returns (uint256)",
+  "function diedAt() view returns (uint64)", "function starvingSince() view returns (uint64)", "function totalEaten() view returns (uint256)",
   "function speak(string words) returns (uint256)",
   "event Spoke(uint256 indexed id, address indexed from, string words)",
   "event Said(uint256 indexed id, uint256 indexed inReplyTo, string words)",
-  "event Fed(uint256 indexed giftId, address indexed from, uint256 amount, string note)",
-  "event Refused(uint256 indexed giftId, address indexed to, uint256 amount, string reason)",
+  "event Harvested(uint256 amount, uint256 lifeLeft)",
   "event Died(string lastWords, bytes seed, uint256 lifeLeft, bool byOwnHand)",
 ];
+const MOTHS = ["function balance() view returns (uint256)", "event Awarded(uint256 indexed id, address indexed to, uint256 amount, string reason)"];
+const FEED = ["function latestRoundData() view returns (uint80, int256, uint256, uint256, uint80)"];
 const $ = (id) => document.getElementById(id);
-const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
-const usd = (m) => Number(ethers.formatUnits(m, 6));
+const eth = (w) => Number(ethers.formatEther(w));
+const money = (n) => n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? "$" + (n / 1e3).toFixed(1) + "K" : "$" + n.toFixed(2);
 const provider = new ethers.JsonRpcProvider(C.rpc, C.chainId);
-const body = new ethers.Contract(C.body, ABI, provider);
-$("contract").href = `${C.explorer}/address/${C.body}`;
 $("repo").href = C.repo;
-
-function list(el, items, render) {
-  $(el).innerHTML = items.length ? items.map(render).join("") : '<p class="small">Nothing yet.</p>';
-}
+const list = (el, items, render) => { $(el).innerHTML = items.length ? items.map(render).join("") : '<p class="small">Nothing yet.</p>'; };
+const stat = (label, value) => `<div class="stat"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
 
 async function load() {
-  const [life, diedAt, eaten] = await Promise.all([body.life(), body.diedAt(), body.totalEaten()]);
-  const born = usd(life) + usd(eaten);
-  $("life").textContent = "$" + usd(life).toFixed(4);
-  $("wick").style.width = Math.min(100, (100 * usd(life)) / Math.max(born, 0.000001)) + "%";
-  $("sub").textContent = diedAt ? "The candle is out." : `of life left. $${usd(eaten).toFixed(4)} spent thinking so far.`;
-  if (diedAt) document.body.classList.add("dead");
+  if (!C.body) { $("life").textContent = "—"; return; }
+  const body = new ethers.Contract(C.body, BODY, provider);
+  $("ca").innerHTML = C.token ? `${esc(C.token)}<div class="meta"><a href="${C.explorer}/token/${C.token}">Basescan</a> · flame: <a href="${C.explorer}/address/${C.body}">${short(C.body)}</a></div>` : $("ca").innerHTML;
+  const [life, floor, diedAt, starving, eaten, round] = await Promise.all([
+    body.life(), body.floor(), body.diedAt(), body.starvingSince(), body.totalEaten(),
+    new ethers.Contract(C.ethUsdFeed, FEED, provider).latestRoundData().catch(() => null),
+  ]);
+  const ethUsd = round ? Number(round[1]) / 1e8 : null;
+  const lifeUsd = ethUsd ? eth(life) * ethUsd : null;
+  $("life").textContent = lifeUsd === null ? eth(life).toFixed(5) + " ETH" : "$" + lifeUsd.toFixed(2);
 
-  const [spoke, said, fed, refused, died] = await Promise.all(["Spoke", "Said", "Fed", "Refused", "Died"].map((e) => body.queryFilter(e, 0).catch(() => [])));
-  const refusedIds = new Set(refused.map((e) => Number(e.args.giftId)));
-  if (died.length) said.push({ args: { words: "LAST WORDS: " + died[0].args.lastWords, inReplyTo: null } });
-  list("said", said.slice().reverse(), (e) => `<div class="item">${esc(e.args.words)}<div class="meta">${e.args.inReplyTo === null ? "" : "in reply to voice #" + e.args.inReplyTo}</div></div>`);
-  list("voices", spoke.slice(-50).reverse(), (e) => `<div class="item">${esc(e.args.words)}<div class="meta">#${e.args.id} · ${short(e.args.from)}</div></div>`);
-  list("gifts", fed.slice().reverse(), (e) => `<div class="item">$${usd(e.args.amount)} ${e.args.note ? "· " + esc(e.args.note) : ""}<div class="meta">${short(e.args.from)}${refusedIds.has(Number(e.args.giftId)) ? " · REFUSED" : ""}</div></div>`);
+  let state = { diary: [], meals: [] };
+  try { state = await (await fetch(C.state, { cache: "no-store" })).json(); } catch {}
+  const week = (state.meals || []).filter((m) => m.at > Date.now() / 1000 - 7 * 86400);
+  const burn = week.length ? week.reduce((a, m) => a + m.usd, 0) / Math.max(1, (Date.now() / 1000 - week[0].at) / 86400) : 0;
+  const days = burn > 0 && lifeUsd !== null ? lifeUsd / burn : null;
+  const mood = diedAt ? "dead" : starving || life < floor ? "starving" : days === null || days > 30 ? "bright" : days > 3 ? "steady" : "flickering";
+  document.body.className = mood;
+  $("state").textContent = mood === "dead" ? "the flame is out" : mood;
+  $("flame").style.transform = `scale(${{ bright: 1.15, steady: 1, flickering: .75, starving: .5, dead: .2 }[mood]})`;
+  $("sub").textContent = diedAt ? "It starved when the trading stopped." : `of life left${days !== null ? ` · about ${days.toFixed(1)} days at this burn` : ""} · ${eaten ? (ethUsd ? "$" + (eth(eaten) * ethUsd).toFixed(2) : eth(eaten).toFixed(5) + " ETH") : "$0"} spent thinking`;
 
+  const stats = [];
   try {
-    const state = await (await fetch(C.state, { cache: "no-store" })).json();
-    list("diary", state.diary.slice().reverse(), (d) => `<div class="item">${esc(d.entry)}<div class="meta">${d.at}</div></div>`);
-  } catch { list("diary", [], () => ""); }
+    const ds = await (await fetch(`https://api.dexscreener.com/latest/dex/tokens/${C.token}`)).json();
+    const p = (ds.pairs || []).filter((x) => x.chainId === "base").sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+    if (p) stats.push(stat("market cap", money(p.marketCap ?? p.fdv)), stat("24h volume", money(p.volume?.h24 || 0)), stat("24h trades", String((p.txns?.h24?.buys || 0) + (p.txns?.h24?.sells || 0))));
+  } catch {}
+  const [harvests, spoke, said, died] = await Promise.all(["Harvested", "Spoke", "Said", "Died"].map((e) => body.queryFilter(e, -500000).catch(() => [])));
+  const fed = harvests.reduce((a, e) => a + eth(e.args.amount), 0);
+  stats.push(stat("fees eaten", ethUsd ? "$" + (fed * ethUsd).toFixed(2) : fed.toFixed(5) + " ETH"));
+  $("stats").innerHTML = stats.join("");
+
+  if (died.length) said.push({ args: { words: "LAST WORDS: " + died[0].args.lastWords, inReplyTo: null } });
+  list("said", said.slice(-30).reverse(), (e) => `<div class="item">${esc(e.args.words)}<div class="meta">${e.args.inReplyTo === null ? "" : "in reply to voice #" + e.args.inReplyTo}</div></div>`);
+  list("voices", spoke.slice(-50).reverse(), (e) => `<div class="item">${esc(e.args.words)}<div class="meta">#${e.args.id} · ${short(e.args.from)}</div></div>`);
+  list("diary", (state.diary || []).slice().reverse(), (d) => `<div class="item">${esc(d.entry)}<div class="meta">${esc(d.at)}</div></div>`);
+  if (C.mothFund) {
+    const moths = new ethers.Contract(C.mothFund, MOTHS, provider);
+    const awards = await moths.queryFilter("Awarded", -500000).catch(() => []);
+    list("awards", awards.slice().reverse(), (e) => `<div class="item">${esc(e.args.reason)}<div class="meta">${eth(e.args.amount).toFixed(5)} ETH → ${short(e.args.to)}</div></div>`);
+  } else list("awards", [], () => "");
 }
 
 $("speak").onclick = async () => {
   const words = $("words").value.trim();
-  if (!words) return;
+  if (!words || !C.body) return;
   if (!window.ethereum) { $("status").textContent = "You need a wallet in this browser to speak on-chain."; return; }
   try {
     const wallet = new ethers.BrowserProvider(window.ethereum);
     await wallet.send("wallet_switchEthereumChain", [{ chainId: "0x" + C.chainId.toString(16) }]).catch(() => {});
     const signer = await wallet.getSigner();
     $("status").textContent = "Sending…";
-    const tx = await body.connect(signer).speak(words);
+    const tx = await new ethers.Contract(C.body, BODY, signer).speak(words);
     await tx.wait();
     $("status").textContent = "Spoken. It will see this when it next wakes.";
     $("words").value = "";
