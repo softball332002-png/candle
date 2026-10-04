@@ -1,6 +1,6 @@
 # The candle's pulse. Wakes every hour; the mind decides how long it actually sleeps,
 # so most runs exit immediately without thinking or spending anything.
-# Disabled until birth: set the repository variable CANDLE_ALIVE to "true" to start it.
+# Sleeps until launch: it only beats once deployments/8453.json exists (written by the launch workflow).
 name: heartbeat
 on:
   schedule: [{ cron: "17 * * * *" }]
@@ -9,25 +9,33 @@ concurrency: { group: heartbeat, cancel-in-progress: false }
 permissions: { contents: write }
 jobs:
   beat:
-    if: vars.CANDLE_ALIVE == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
-      - run: npm ci
-      - run: node mind/heartbeat.mjs
+      - name: Launched yet?
+        id: d
+        run: |
+          if [ ! -f deployments/8453.json ]; then echo "not launched"; exit 0; fi
+          echo "live=1" >> "$GITHUB_OUTPUT"
+          for k in body token mothFund; do echo "$k=$(jq -r .$k deployments/8453.json)" >> "$GITHUB_OUTPUT"; done
+      - if: steps.d.outputs.live
+        run: npm ci
+      - if: steps.d.outputs.live
+        run: node mind/heartbeat.mjs
         env:
           RPC_URL: ${{ secrets.RPC_URL || 'https://mainnet.base.org' }}
-          BODY_ADDRESS: ${{ vars.BODY_ADDRESS }}
-          TOKEN: ${{ vars.TOKEN }}
-          MOTH_FUND: ${{ vars.MOTH_FUND }}
+          BODY_ADDRESS: ${{ steps.d.outputs.body }}
+          TOKEN: ${{ steps.d.outputs.token }}
+          MOTH_FUND: ${{ steps.d.outputs.mothFund }}
           CLANKER_LOCKER: "0xffA37784D619F228D8B379d287a4D7282e500762"
           PRICE_FEED: "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"
           MIND_KEY: ${{ secrets.MIND_KEY }}
           SEAL_KEY: ${{ secrets.SEAL_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Publish the thought log
+        if: steps.d.outputs.live
         run: |
           git config user.name "candle"
           git config user.email "candle@users.noreply.github.com"

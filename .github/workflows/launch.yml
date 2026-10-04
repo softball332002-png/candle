@@ -1,6 +1,6 @@
 # THE REAL LAUNCH on Base mainnet. Run by hand only, after the founder says go.
 # The flame launches its own coin: its mind key (secret MIND_KEY, funded with ETH on Base by the
-# founder) pays for everything. Needs variables FOUNDER, MIND (the mind key's address), KITCHEN.
+# founder) pays for everything.
 # Deploys the Body, the Moth Fund and $CANDLE, then commits deployments/8453.json and the site config.
 name: launch
 on:
@@ -29,9 +29,11 @@ jobs:
         env:
           RPC_URL: ${{ secrets.RPC_URL || 'https://mainnet.base.org' }}
           LAUNCHER_KEY: ${{ secrets.MIND_KEY }}
-          FOUNDER: ${{ vars.FOUNDER }}
-          MIND: ${{ vars.MIND }}
-          KITCHEN: ${{ vars.KITCHEN }}
+          # Public addresses, given by Oblivara on 2026-10-04. The kitchen (reimbursed running costs) is the founder.
+          FOUNDER: "0xeeF61F371Fb309287117Dc82C1CeF0Df8C3668F5"
+          MIND: "0x58e8D5AE47c164cA974A216Af0AB612058373DA9"
+          KITCHEN: "0xeeF61F371Fb309287117Dc82C1CeF0Df8C3668F5"
+          EXPECT_LAUNCHER: "0x58e8D5AE47c164cA974A216Af0AB612058373DA9"
           DEV_BUY_ETH: ${{ inputs.dev_buy_eth }}
           LIFE_ETH: ${{ inputs.life_eth }}
           IMAGE: ${{ inputs.image }}

@@ -83,6 +83,15 @@ export async function launch(opts) {
   const feeLocker = cc.related.feeLocker;
   const eth = (n) => parseEther(String(n));
 
+  // Refuse before spending anything if the key isn't the wallet we expect, or can't afford the launch.
+  if (opts.expectLauncher && getAddress(opts.expectLauncher) !== c.account.address) {
+    throw new Error(`launcher key is ${c.account.address}, expected ${opts.expectLauncher}`);
+  }
+  const need = eth(opts.devBuyEth ?? 0) + eth(opts.lifeEth ?? 0) + eth("0.001");
+  const have = await c.publicClient.getBalance({ address: c.account.address });
+  console.log(`launcher ${c.account.address} has ${Number(have) / 1e18} ETH, needs about ${Number(need) / 1e18}`);
+  if (have < need) throw new Error("launcher cannot afford the launch");
+
   const caps = {
     maxPerMeal: eth(opts.maxPerMeal ?? "0.002"),
     maxPerDay: eth(opts.maxPerDay ?? "0.004"),
@@ -164,5 +173,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     image: e.IMAGE,
     genesis: e.GENESIS,
     out: e.OUT,
+    expectLauncher: e.EXPECT_LAUNCHER,
   });
 }
