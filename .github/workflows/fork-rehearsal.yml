@@ -1,0 +1,51 @@
+# Launch rehearsal on a private fork of Base: real Clanker v4 contracts, throwaway test wallets,
+# simulated traders, fee split checked, then the flame starves. No real money, nothing public.
+# Uses the free public Base RPC unless the repository secret BASE_RPC is set.
+name: fork-rehearsal
+on:
+  workflow_dispatch:
+    inputs:
+      rounds: { description: "simulated trades", required: false, default: "40" }
+  push:
+    branches: ["launch-*"]
+    paths: ["contracts/**", "mind/**", "scripts/launch.mjs", "scripts/fork-rehearse.mjs", ".github/workflows/fork-rehearsal.yml"]
+concurrency:
+  group: fork-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+permissions: { contents: read }
+jobs:
+  rehearse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: npm ci
+      - run: npx hardhat compile
+      - name: Fork Base
+        env:
+          BASE_RPC: ${{ secrets.BASE_RPC }}
+        run: |
+          anvil --fork-url "${BASE_RPC:-https://mainnet.base.org}" --chain-id 8453 --silent > anvil.log 2>&1 &
+          for i in $(seq 1 90); do curl -s -o /dev/null -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' http://127.0.0.1:8545 && exit 0; sleep 1; done
+          cat anvil.log; exit 1
+      - name: Rehearse the launch
+        run: |
+          set -o pipefail
+          mkdir -p rehearsal/fork
+          node scripts/fork-rehearse.mjs 2>&1 | tee rehearsal/fork/run.log
+        env:
+          ROUNDS: ${{ inputs.rounds || '40' }}
+          OUT_DIR: rehearsal/fork
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: fork-rehearsal, path: rehearsal/fork, if-no-files-found: ignore }
+      - if: always()
+        name: Report
+        run: |
+          cat rehearsal/fork/report.txt || true
+          echo "---- errors ----"
+          grep -nE "Error|error:|revert|FAILED|at file" rehearsal/fork/run.log | grep -v "^.*DeprecationWarning" | head -30 || true

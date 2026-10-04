@@ -8,18 +8,33 @@ const DAY = 24 * 60 * 60;
 async function deploy() {
   const [operator, mind, kitchen, alice, bob] = await ethers.getSigners();
   const usdc = await ethers.deployContract("MockUSDC");
+  const locker = await ethers.deployContract("MockFeeLocker");
   const body = await ethers.deployContract("Body", [
-    usdc, mind.address, kitchen.address, usd(1), usd(5), usd("0.10"), "I am lit.",
+    usdc, mind.address, kitchen.address, usd(1), usd(5), usd("0.10"), locker, "I am lit.",
   ]);
+  await usdc.connect(operator).approve(locker, ethers.MaxUint256);
   for (const s of [operator, alice, bob]) {
     await usdc.mint(s.address, usd(1000));
     await usdc.connect(s).approve(body, ethers.MaxUint256);
   }
   await body.connect(operator).feed(usd(100), "birth");
-  return { usdc, body, operator, mind, kitchen, alice, bob };
+  return { usdc, body, locker, operator, mind, kitchen, alice, bob };
 }
 
 const commitment = (text, salt) => ethers.solidityPackedKeccak256(["string", "bytes32"], [text, salt]);
+
+async function starve(body, mind) {
+  // Eat down to just under the floor, a day at a time.
+  while ((await body.life()) >= usd("0.10")) {
+    const left = await body.life();
+    const bite = left - usd("0.09") < usd(1) ? left - usd("0.09") : usd(1);
+    try {
+      await body.connect(mind).metabolize(bite, ethers.ZeroHash);
+    } catch {
+      await time.increase(DAY);
+    }
+  }
+}
 
 describe("Body", () => {
   it("is born with the genesis message and 100 USDC of life", async () => {
@@ -115,18 +130,6 @@ describe("Body", () => {
   });
 
   describe("death", () => {
-    async function starve(body, mind) {
-      // Eat down to just under the floor, a day at a time.
-      while ((await body.life()) >= usd("0.10")) {
-        const left = await body.life();
-        const bite = left - usd("0.09") < usd(1) ? left - usd("0.09") : usd(1);
-        try {
-          await body.connect(mind).metabolize(bite, ethers.ZeroHash);
-        } catch {
-          await time.increase(DAY);
-        }
-      }
-    }
 
     it("cannot die while it still has life", async () => {
       const { body, mind } = await loadFixture(deploy);
@@ -169,6 +172,17 @@ describe("Body", () => {
       await expect(body.connect(alice).seal()).to.emit(body, "Died").withArgs("(abandoned)", "0x", usd(100), false);
     });
 
+    it("cannot be sealed for silence once trading fees refilled it", async () => {
+      const { body, usdc, mind, alice } = await loadFixture(deploy);
+      await starve(body, mind);
+      await usdc.mint(await body.getAddress(), usd(1)); // fees claimed straight to the Body
+      await time.increase(3 * DAY);
+      await expect(body.connect(alice).seal()).to.be.revertedWithCustomError(body, "NotYet");
+      await expect(body.connect(alice).recover()).to.emit(body, "Recovered");
+      expect(await body.starvingSince()).to.equal(0);
+      await expect(body.connect(alice).recover()).to.be.revertedWithCustomError(body, "NotYet");
+    });
+
     it("lets anyone reveal an intention after death", async () => {
       const { body, mind, alice } = await loadFixture(deploy);
       const salt = ethers.ZeroHash;
@@ -176,6 +190,23 @@ describe("Body", () => {
       await time.increase(30 * DAY);
       await body.connect(alice).seal();
       await expect(body.connect(alice).reveal(0, "I knew.", salt)).to.emit(body, "Revealed");
+    });
+  });
+
+  describe("trading fees", () => {
+    it("harvests its share from the fee locker, and anyone can trigger it", async () => {
+      const { body, locker, usdc, operator, alice } = await loadFixture(deploy);
+      await locker.connect(operator).accrue(await body.getAddress(), await usdc.getAddress(), usd(3));
+      await expect(body.connect(alice).harvest()).to.emit(body, "Harvested").withArgs(usd(3), usd(103));
+      expect(await body.life()).to.equal(usd(103));
+    });
+
+    it("harvesting while starving brings it back", async () => {
+      const { body, locker, usdc, operator, mind, alice } = await loadFixture(deploy);
+      await starve(body, mind);
+      await locker.connect(operator).accrue(await body.getAddress(), await usdc.getAddress(), usd(1));
+      await expect(body.connect(alice).harvest()).to.emit(body, "Recovered");
+      expect(await body.starvingSince()).to.equal(0);
     });
   });
 });

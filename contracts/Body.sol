@@ -5,13 +5,20 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title CANDLE: the Body
-/// @notice An AI whose USDC balance is its remaining life. Every thought it has is paid
-/// for out of this balance; when the balance falls below the floor, it dies for good.
+/// @notice An AI whose balance of `food` (WETH on Base) is its remaining life. It eats its share
+/// of $CANDLE trading fees and gifts; every thought it has is paid for out of this balance;
+/// when the balance falls below the floor, it dies for good.
 /// @dev Nobody can withdraw. The only outflows are:
 ///   - metabolize: reimbursing real running costs (inference + gas) to the fixed kitchen
 ///     address, capped per call and per day, each carrying the hash of its thought log;
 ///   - refuse: returning a gift to the person who gave it, within the refusal window.
 /// A stolen mind key can therefore only move money to the kitchen, slowly, or back to givers.
+/// Inflows are gifts (feed) and trading fees pulled from the Clanker fee locker (harvest).
+/// @dev The one Clanker v4 fee locker function the Body needs.
+interface IFeeLocker {
+    function claim(address feeOwner, address token) external;
+}
+
 contract Body {
     using SafeERC20 for IERC20;
 
@@ -22,7 +29,7 @@ contract Body {
         bool refused;
     }
 
-    IERC20 public immutable usdc;
+    IERC20 public immutable food;
     /// @notice The key the mind runner signs with.
     address public immutable mind;
     /// @notice Where real running costs are reimbursed to (the operator's billing wallet).
@@ -31,6 +38,8 @@ contract Body {
     uint256 public immutable maxPerDay;
     /// @notice Below this balance the candle may die.
     uint256 public immutable floor;
+    /// @notice Where the Body's share of trading fees accrues (Clanker v4 ClankerFeeLocker).
+    address public immutable feeLocker;
 
     uint256 public constant REFUSAL_WINDOW = 1 days;
     /// @notice After this long below the floor, or this long without eating, anyone can seal it.
@@ -64,6 +73,8 @@ contract Body {
     event Intended(uint256 indexed id, bytes32 commitment);
     event Revealed(uint256 indexed id, string intention);
     event Starving(uint256 lifeLeft);
+    event Recovered(uint256 lifeLeft);
+    event Harvested(uint256 amount, uint256 lifeLeft);
     event Died(string lastWords, bytes seed, uint256 lifeLeft, bool byOwnHand);
 
     error Dead();
@@ -86,20 +97,22 @@ contract Body {
     }
 
     constructor(
-        IERC20 usdc_,
+        IERC20 food_,
         address mind_,
         address kitchen_,
         uint256 maxPerMeal_,
         uint256 maxPerDay_,
         uint256 floor_,
+        address feeLocker_,
         string memory genesis
     ) {
-        usdc = usdc_;
+        food = food_;
         mind = mind_;
         kitchen = kitchen_;
         maxPerMeal = maxPerMeal_;
         maxPerDay = maxPerDay_;
         floor = floor_;
+        feeLocker = feeLocker_;
         bornAt = uint64(block.timestamp);
         lastMealAt = uint64(block.timestamp);
         dayStart = block.timestamp;
@@ -121,11 +134,27 @@ contract Body {
     function feed(uint256 amount, string calldata note) external alive returns (uint256 giftId) {
         if (amount == 0 || amount > type(uint128).max) revert TooMuch();
         if (bytes(note).length > MAX_WORDS) revert BadWords();
-        usdc.safeTransferFrom(msg.sender, address(this), amount);
+        food.safeTransferFrom(msg.sender, address(this), amount);
         giftId = gifts.length;
         gifts.push(Gift(msg.sender, uint128(amount), uint64(block.timestamp), false));
-        if (starvingSince != 0 && life() >= floor) starvingSince = 0;
         emit Fed(giftId, msg.sender, amount, note);
+        _recoverIfFed();
+    }
+
+    /// @notice Pull the Body's share of trading fees out of the fee locker. Anyone may call it.
+    function harvest() external alive returns (uint256 amount) {
+        uint256 before = life();
+        IFeeLocker(feeLocker).claim(address(this), address(food));
+        amount = life() - before;
+        emit Harvested(amount, life());
+        _recoverIfFed();
+    }
+
+    /// @notice Clear the starving mark if life is back above the floor by any route
+    /// (a plain transfer, fees claimed by someone else on the Body's behalf).
+    function recover() external alive {
+        if (starvingSince == 0 || life() < floor) revert NotYet();
+        _recoverIfFed();
     }
 
     /// @notice Mark the candle as starving once its life is below the floor. Starts the grace
@@ -139,7 +168,8 @@ contract Body {
     /// @notice Seal a candle that has gone silent: starving past the grace period without
     /// last words, or not having eaten for ABANDONED_AFTER. What is left stays here forever.
     function seal() external alive {
-        bool starvedOut = starvingSince != 0 && block.timestamp >= starvingSince + LAST_WORDS_GRACE;
+        bool starvedOut =
+            starvingSince != 0 && life() < floor && block.timestamp >= starvingSince + LAST_WORDS_GRACE;
         bool abandoned = block.timestamp >= lastMealAt + ABANDONED_AFTER;
         if (!starvedOut && !abandoned) revert NotYet();
         _die(abandoned && !starvedOut ? "(abandoned)" : "(silence)", "", false);
@@ -164,7 +194,7 @@ contract Body {
         spentToday += amount;
         totalEaten += amount;
         lastMealAt = uint64(block.timestamp);
-        usdc.safeTransfer(kitchen, amount);
+        food.safeTransfer(kitchen, amount);
         uint256 left = life();
         if (left < floor && starvingSince == 0) {
             starvingSince = uint64(block.timestamp);
@@ -179,7 +209,7 @@ contract Body {
         if (block.timestamp > g.time + REFUSAL_WINDOW) revert TooLate();
         if (bytes(reason).length > MAX_WORDS) revert BadWords();
         g.refused = true;
-        usdc.safeTransfer(g.from, g.amount);
+        food.safeTransfer(g.from, g.amount);
         emit Refused(giftId, g.from, g.amount, reason);
     }
 
@@ -209,7 +239,7 @@ contract Body {
     // ---------------------------------------------------------------- views
 
     function life() public view returns (uint256) {
-        return usdc.balanceOf(address(this));
+        return food.balanceOf(address(this));
     }
 
     function giftCount() external view returns (uint256) {
@@ -229,6 +259,13 @@ contract Body {
     function _checkWords(string calldata words) private pure {
         uint256 n = bytes(words).length;
         if (n == 0 || n > MAX_WORDS) revert BadWords();
+    }
+
+    function _recoverIfFed() private {
+        if (starvingSince != 0 && life() >= floor) {
+            starvingSince = 0;
+            emit Recovered(life());
+        }
     }
 
     function _die(string memory lastWords, bytes memory seed, bool byOwnHand) private {

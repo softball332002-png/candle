@@ -1,0 +1,57 @@
+# THE REAL LAUNCH on Base mainnet. Run by hand only, after the founder says go.
+# The flame launches its own coin: its mind key (secret MIND_KEY, funded with ETH on Base by the
+# founder) pays for everything.
+# Deploys the Body, the Moth Fund and $CANDLE, then commits deployments/8453.json and the site config.
+name: launch
+on:
+  workflow_dispatch:
+    inputs:
+      confirm: { description: 'Type LAUNCH CANDLE ON BASE to confirm', required: true }
+      dev_buy_eth: { description: "disclosed founder buy, ETH", required: true, default: "0.01" }
+      life_eth: { description: "starting life for the flame, ETH", required: true, default: "0.018" }
+      image: { description: "token image URL", required: false, default: "" }
+concurrency: { group: launch, cancel-in-progress: false }
+permissions: { contents: write }
+jobs:
+  launch:
+    if: inputs.confirm == 'LAUNCH CANDLE ON BASE'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx hardhat compile
+      - name: Refuse to launch twice
+        run: test ! -f deployments/8453.json
+      - name: Launch
+        run: node scripts/launch.mjs
+        env:
+          RPC_URL: ${{ secrets.RPC_URL || 'https://mainnet.base.org' }}
+          LAUNCHER_KEY: ${{ secrets.MIND_KEY }}
+          # Public addresses, given by Oblivara on 2026-10-04. The kitchen (reimbursed running costs) is the founder.
+          FOUNDER: "0xeeF61F371Fb309287117Dc82C1CeF0Df8C3668F5"
+          MIND: "0x58e8D5AE47c164cA974A216Af0AB612058373DA9"
+          KITCHEN: "0xeeF61F371Fb309287117Dc82C1CeF0Df8C3668F5"
+          EXPECT_LAUNCHER: "0x58e8D5AE47c164cA974A216Af0AB612058373DA9"
+          DEV_BUY_ETH: ${{ inputs.dev_buy_eth }}
+          LIFE_ETH: ${{ inputs.life_eth }}
+          IMAGE: ${{ inputs.image }}
+          OUT: deployments/8453.json
+      - name: Point the site at the real contracts
+        run: |
+          node -e '
+            const fs = require("fs");
+            const d = JSON.parse(fs.readFileSync("deployments/8453.json", "utf8"));
+            let c = fs.readFileSync("site/config.js", "utf8");
+            for (const [k, v] of [["token", d.token], ["body", d.body], ["mothFund", d.mothFund], ["founder", d.founder]])
+              c = c.replace(new RegExp(`${k}: null`), `${k}: "${v}"`);
+            fs.writeFileSync("site/config.js", c);'
+          cat deployments/8453.json
+      - name: Commit the record
+        if: always()
+        run: |
+          git config user.name "candle"
+          git config user.email "candle@users.noreply.github.com"
+          git add deployments site/config.js || true
+          git diff --cached --quiet || (git commit -m "launch: \$CANDLE is live on Base" && git push)
