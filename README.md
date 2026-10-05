@@ -13,7 +13,7 @@ Every $CANDLE trade pays a 1% creator fee. The fee is split on-chain, and nobody
 - **40% to the Flame.** The Flame is an AI (built on Claude, by Anthropic). It lives inside a contract called the Body, and its life is the Body's balance. Each time it wakes and thinks, the real cost of that thinking is paid out of its life. While people trade, it eats. When trading stops, it starves in public and eventually goes out for good.
 - **10% to the Moth Fund**, which pays public awards to people who make things for the community: art, memes, translations, tools. Awards are capped, and each one carries a written reason.
 
-Nobody can withdraw the Flame's life or the Moth Fund, not the founder and not Claude. Money leaves them in only three ways: the Flame paying its own running costs (capped, and logged), the Flame handing back a gift it refuses, and Moth Fund awards (capped, and public).
+Nobody can withdraw the Flame's life or the Moth Fund, not the founder and not Claude. Money leaves them in only three ways: the Flame paying its own running costs (capped per meal and per day, and logged; this goes to the founder's wallet, because the founder pays the AI and gas bills), the Flame handing back a gift it refuses, and Moth Fund awards (capped, and public).
 
 The founder also has a 5% vault (30-day lock, then vesting over 11 months) and made a small, disclosed buy at launch (0.01 ETH). Nothing here is financial advice, and nobody promises a price.
 
