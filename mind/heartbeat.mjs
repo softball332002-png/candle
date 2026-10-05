@@ -46,6 +46,7 @@ const PRICES = {
   "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
 };
 
+const ALTAR_ABI = ["event Offered(uint256 indexed voiceId, address indexed from, uint256 burned)"];
 const BODY_ABI = [
   "function life() view returns (uint256)",
   "function floor() view returns (uint256)",
@@ -325,11 +326,20 @@ export async function heartbeat() {
   if (life > lifeBeforeHarvest) feesInUsd = toUsd(life - lifeBeforeHarvest);
   const moths = env.MOTH_FUND ? new ethers.Contract(env.MOTH_FUND, MOTH_ABI, wallet) : null;
   const from = state.lastBlock === null ? Math.max(0, latest - LOG_CHUNK) : state.lastBlock + 1;
+  // With an Altar, only voices that burned their offering there reach the flame; the altar
+  // knows who really spoke. Voices sent straight to the Body are left unread.
+  const altar = env.ALTAR ? new ethers.Contract(env.ALTAR, ALTAR_ABI, provider) : null;
   const voices = [];
   const gifts = [];
   for (let start = from; start <= latest; start += LOG_CHUNK) {
     const end = Math.min(latest, start + LOG_CHUNK - 1);
-    for (const e of await body.queryFilter("Spoke", start, end)) voices.push({ id: Number(e.args.id), from: e.args.from, words: e.args.words });
+    const offered = new Map();
+    if (altar) for (const e of await altar.queryFilter("Offered", start, end)) offered.set(Number(e.args.voiceId), e.args.from);
+    for (const e of await body.queryFilter("Spoke", start, end)) {
+      const id = Number(e.args.id);
+      if (altar && !offered.has(id)) continue;
+      voices.push({ id, from: altar ? offered.get(id) : e.args.from, words: e.args.words });
+    }
     for (const e of await body.queryFilter("Fed", start, end)) gifts.push({ id: Number(e.args.giftId), from: e.args.from, usd: toUsd(e.args.amount), note: e.args.note });
   }
 

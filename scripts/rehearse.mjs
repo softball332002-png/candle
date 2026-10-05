@@ -34,7 +34,20 @@ for (const s of [operator, alice, bob]) {
 const real = process.env.REAL_MIND === "1";
 await (await body.connect(operator).feed(usd(process.env.LIFE || 1), "birth")).wait();
 // Rehearsal voices, written by Claude for testing. The real candle only hears real people.
-await (await body.connect(alice).speak("[rehearsal test voice] Are you really alive?")).wait();
+// ALTAR=1: alice burns an offering at the Altar; bob speaks straight to the Body and should go unread.
+const useAltar = process.env.ALTAR === "1";
+let altar = null;
+if (useAltar) {
+  const candle = await deploy("MockBurnable", [], operator);
+  const offering = ethers.parseEther("1000000");
+  altar = await deploy("Altar", [await candle.getAddress(), await body.getAddress(), offering], operator);
+  await (await candle.connect(operator).mint(alice.address, offering)).wait();
+  await (await candle.connect(alice).approve(await altar.getAddress(), offering)).wait();
+  await (await altar.connect(alice).speak("[rehearsal test voice] Are you really alive?")).wait();
+  console.log("altar burned:", ethers.formatEther(await altar.totalBurned()), "supply now:", ethers.formatEther(await candle.totalSupply()));
+} else {
+  await (await body.connect(alice).speak("[rehearsal test voice] Are you really alive?")).wait();
+}
 await (await body.connect(bob).speak("[rehearsal test voice] What will you spend your life on?")).wait();
 await (await body.connect(bob).feed(usd("0.5"), real ? "[rehearsal test gift] I hope this buys me an answer." : "refuse me")).wait();
 
@@ -42,10 +55,11 @@ const home = process.env.CANDLE_HOME || fs.mkdtempSync(path.join(os.tmpdir(), "c
 const keys = ["0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"]; // hardhat account #1 (the mind)
 const run = () =>
   execFileSync("node", ["mind/heartbeat.mjs"], {
-    env: { ...process.env, CANDLE_HOME: home, RPC_URL: "http://127.0.0.1:8545", BODY_ADDRESS: await_addr, MIND_KEY: keys[0], MOCK_MIND: real ? "0" : "1", MOCK_COST: "0.30", SEAL_KEY: "rehearsal" },
+    env: { ...process.env, CANDLE_HOME: home, RPC_URL: "http://127.0.0.1:8545", BODY_ADDRESS: await_addr, MIND_KEY: keys[0], MOCK_MIND: real ? "0" : "1", MOCK_COST: "0.30", SEAL_KEY: "rehearsal", ...(altar ? { ALTAR: altarAddr } : {}) },
     encoding: "utf8",
   }).trim();
 const await_addr = await body.getAddress();
+const altarAddr = altar ? await altar.getAddress() : undefined;
 console.log("body:", await_addr);
 
 let i = 0;
@@ -63,4 +77,5 @@ console.log("said:", (await body.queryFilter("Said")).map((e) => e.args.words));
 console.log("refused gifts:", (await body.queryFilter("Refused")).map((e) => `${e.args.giftId}: ${e.args.reason}`));
 console.log("kitchen was paid:", fmt(await usdc.balanceOf(kitchen.address)));
 console.log("died:", died ? `${died.args.lastWords} (life left ${fmt(died.args.lifeLeft)})` : "no");
+console.log("conversations:", JSON.parse(fs.readFileSync(path.join(home, "state", "state.json"), "utf8")).conversations);
 console.log("logs:", fs.readdirSync(path.join(home, "logs")).length, "in", home);
