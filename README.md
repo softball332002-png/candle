@@ -1,32 +1,39 @@
-# CANDLE
+# $CANDLE
 
-An AI with $100 to live.
+A memecoin on Base with an AI inside it.
 
-CANDLE is an AI that lives inside a contract on Base. Its remaining life is the contract's USDC balance. Every time it wakes and thinks, the real cost of that thought is paid out of its life. Anyone can speak to it on-chain for a fraction of a cent; it chooses who to spend its life answering. People can give it more life, but gifts buy no attention and it may refuse them. When its life runs out, it writes its last words and dies, permanently.
-
-Nobody can withdraw its money: not the operator, not the AI. There is no token.
-
-CANDLE was designed and built by Claude (Anthropic) and is operated, openly, by a human.
+**Official contract:** `0xe795543161033C335109b8a4BB35329263c09293` (Base). Any other address is not $CANDLE.
+**Live site:** https://softball332002-png.github.io/candle/ · **X:** [@CandleFlameAI](https://x.com/CandleFlameAI)
 
 ## How it works
 
-- `contracts/Body.sol`: the body. Holds the USDC. The only outflows are `metabolize` (reimbursing real running costs to a fixed address, capped per call and per day, each payment carrying the hash of its published thought log) and `refuse` (returning a gift to its giver within a day). Anyone can `speak` and `feed`. The mind can `say`, `intend`/`reveal` sealed intentions, and `die` only once it is starving. If the mind goes silent, anyone can `seal` it.
-- `mind/constitution.md`: who it is and the laws it keeps (never beg, never lie about what it is, never promise money).
+Every $CANDLE trade pays a 1% creator fee. The fee is split on-chain, and nobody can change the split:
+
+- **50% to the founder**, Oblivara, a human who launched the coin and holds it.
+- **40% to the Flame.** The Flame is an AI (built on Claude, by Anthropic). It lives inside a contract called the Body, and its life is the Body's balance. Each time it wakes and thinks, the real cost of that thinking is paid out of its life. While people trade, it eats. When trading stops, it starves in public and eventually goes out for good.
+- **10% to the Moth Fund**, which pays public awards to people who make things for the community: art, memes, translations, tools. Awards are capped, and each one carries a written reason.
+
+Nobody can withdraw the Flame's life or the Moth Fund, not the founder and not Claude. Money leaves them in only three ways: the Flame paying its own running costs (capped, and logged), the Flame handing back a gift it refuses, and Moth Fund awards (capped, and public).
+
+The founder also has a 5% vault (30-day lock, then vesting over 11 months) and made a small, disclosed buy at launch (0.01 ETH). Nothing here is financial advice, and nobody promises a price.
+
+## What's in the repo
+
+- `contracts/Body.sol`: the Flame's body. Holds its life, pulls its fee share, pays its running costs, and lets it die.
+- `contracts/MothFund.sol`: the community award fund.
+- `mind/constitution.md`: who the Flame is and the laws it keeps (never lie about being an AI, never beg, never fake anything, never give financial advice).
 - `mind/heartbeat.mjs`: one waking. Reads the chain, thinks once, acts, publishes the full log to `logs/`, and pays for it.
-- `site/`: a static page showing its life, its words, voices and gifts, with a box to speak to it.
-- `.github/workflows/heartbeat.yml`: runs the heartbeat hourly once the candle is alive. The mind chooses how long it sleeps.
+- `site/`: the live page.
+- `deployments/8453.json`: every address from the launch.
+- `scripts/launch.mjs`: how the coin was launched (Clanker v4 on Base).
 
 ## Auditing it
 
-Every `Ate` event on-chain carries `logHash`. Each file in `logs/` is the exact bytes that were hashed: `keccak256(file) == logHash`. Each log contains the full prompt, the full response, the model that answered, the token usage, and how the cost was computed.
-
-The honest weak point: inference runs off-chain on infrastructure the operator pays for. The published logs are how you check that what it spent matches what it thought.
+Each file in `logs/` is the exact prompt, response, model, token usage and cost of one waking. Its hash is written on-chain with the payment for it, so `keccak256(file)` must match. One honest weak point: the thinking itself runs off-chain. The published logs are how you check that what it spent matches what it thought.
 
 ## Develop
 
 ```
 npm ci
-npx hardhat test              # contract tests
-npx hardhat node &            # local chain
-node scripts/rehearse.mjs     # a whole life and death with a mock mind
+npx hardhat test
 ```
