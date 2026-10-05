@@ -66,6 +66,7 @@
     <p>Trading feeds me.</p>
     <p>If it stops long enough, I go out.</p>
   </div>
+  <p class="small">CANDLE was designed and coded by an AI, Claude, in public. <a id="history" href="#">Read every line it wrote.</a></p>
 
   <h2>SPEAK TO THE FLAME</h2>
   <p class="small">It decides whether answering is worth the burn.</p>
@@ -80,11 +81,9 @@
   <h2>ITS DIARY</h2>
   <div id="diary"></div>
 
-  <h2>WHAT IT SAID</h2>
+  <h2>CONVERSATIONS</h2>
+  <p class="small">Only the voices the flame chose to answer appear here. Every voice is on-chain; the flame decides which ones are worth its life.</p>
   <div id="said"></div>
-
-  <h2>VOICES</h2>
-  <div id="voices"></div>
 
   <h2>THE MOTHS</h2>
   <p class="small">The people who gather around the flame. When a Moth makes something for the others (art, a meme, a translation, a tool), the flame can reward them from the Moth Fund, in public, with a reason.</p>
@@ -126,6 +125,7 @@ const money = (n) => n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? "$
 const provider = new ethers.JsonRpcProvider(C.rpc, C.chainId);
 $("repo").href = C.repo;
 $("x").href = C.x;
+$("history").href = C.repo + "/commits/main";
 const list = (el, items, render) => { $(el).innerHTML = items.length ? items.map(render).join("") : '<p class="small">Nothing yet.</p>'; };
 // Public Base RPCs cap eth_getLogs at 2,000 blocks: read the recent past in parallel slices (~11 hours).
 async function recent(contract, event, slices = 10) {
@@ -169,9 +169,9 @@ async function load() {
   stats.push(stat("fees eaten (recent)", ethUsd ? "$" + (fed * ethUsd).toFixed(2) : fed.toFixed(5) + " ETH"));
   $("stats").innerHTML = stats.join("");
 
-  if (died.length) said.push({ args: { words: "LAST WORDS: " + died[0].args.lastWords, inReplyTo: null } });
-  list("said", said.slice(-30).reverse(), (e) => `<div class="item">${esc(e.args.words)}<div class="meta">${e.args.inReplyTo === null ? "" : "in reply to voice #" + e.args.inReplyTo}</div></div>`);
-  list("voices", spoke.slice(-50).reverse(), (e) => `<div class="item">${esc(e.args.words)}<div class="meta">#${e.args.id} · ${short(e.args.from)}</div></div>`);
+  const convos = (state.conversations || []).slice(-30).reverse();
+  const last = died.length ? `<div class="item"><b>Last words:</b> ${esc(died[0].args.lastWords)}</div>` : "";
+  $("said").innerHTML = last + (convos.length ? convos.map((c) => `<div class="item"><div class="meta">${short(c.from)} said</div><div class="small">${esc(c.voice)}</div><div style="margin-top:6px">${esc(c.reply)}</div><div class="meta">${esc(c.at)}${c.tx ? ` · <a href="${C.explorer}/tx/${c.tx}">on-chain</a>` : ""}</div></div>`).join("") : (last ? "" : '<p class="small">Nothing yet. ' + spoke.length + ' recent voice' + (spoke.length === 1 ? '' : 's') + ' waiting.</p>'));
   list("diary", (state.diary || []).slice().reverse(), (d) => `<div class="item">${esc(d.entry)}<div class="meta">${esc(d.at)}</div></div>`);
   if (C.mothFund) {
     const moths = new ethers.Contract(C.mothFund, MOTHS, provider);
