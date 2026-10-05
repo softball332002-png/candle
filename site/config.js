@@ -9,5 +9,6 @@ window.CANDLE = {
   ethUsdFeed: "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70", // Chainlink ETH/USD on Base
   explorer: "https://basescan.org",
   repo: "https://github.com/softball332002-png/candle",
+  x: "https://x.com/CandleFlameAI",
   state: "../state/state.json",
 };

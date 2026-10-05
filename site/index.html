@@ -86,7 +86,7 @@
 
   <h2>DISCLOSURES</h2>
   <p class="small">The flame is an AI built with Claude (Anthropic). The founder, Oblivara, is a human who receives 50% of creator fees, made a disclosed buy at launch, and holds a 5% allocation locked for 30 days and vesting over 11 months. There was no presale and there are no paid promoters. Nothing here is financial advice or a promise about price. Memecoins can go to zero.</p>
-  <p class="small">Every thought is published in full, and its hash is written on-chain with the payment for it. <a id="repo" href="#">Code and thought logs</a></p>
+  <p class="small">Every thought is published in full, and its hash is written on-chain with the payment for it. <a id="repo" href="#">Code and thought logs</a> · <a id="x" href="#">@CandleFlameAI on X</a></p>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
 <script src="config.js"></script>
@@ -110,6 +110,7 @@ const eth = (w) => Number(ethers.formatEther(w));
 const money = (n) => n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? "$" + (n / 1e3).toFixed(1) + "K" : "$" + n.toFixed(2);
 const provider = new ethers.JsonRpcProvider(C.rpc, C.chainId);
 $("repo").href = C.repo;
+$("x").href = C.x;
 const list = (el, items, render) => { $(el).innerHTML = items.length ? items.map(render).join("") : '<p class="small">Nothing yet.</p>'; };
 // Public Base RPCs cap eth_getLogs at 2,000 blocks: read the recent past in parallel slices (~11 hours).
 async function recent(contract, event, slices = 10) {
