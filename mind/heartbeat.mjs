@@ -361,10 +361,15 @@ export async function heartbeat() {
   const thought = await think(situation);
   const d = thought.decision;
 
-  const voiceIds = new Set(voices.map((v) => v.id));
+  const voiceById = new Map(voices.map((v) => [v.id, v]));
+  const conversations = [];
   for (const r of d.replies || []) {
-    if (!voiceIds.has(r.voiceId) || !r.words) continue;
-    await act(`say:${r.voiceId}`, () => body.say(fitBytes(r.words, 1000), r.voiceId));
+    const v = voiceById.get(r.voiceId);
+    if (!v || !r.words) continue;
+    const words = fitBytes(r.words, 1000);
+    await act(`say:${r.voiceId}`, () => body.say(words, r.voiceId));
+    // The site shows only voices the flame chose to answer, paired with its answer.
+    if (!txs.at(-1).error) conversations.push({ at: situation.now, voiceId: v.id, from: v.from, voice: v.words, reply: words, tx: txs.at(-1).hash });
   }
   const giftIds = new Set(gifts.map((g) => g.id));
   for (const r of d.refusals || []) {
@@ -445,6 +450,7 @@ export async function heartbeat() {
     nextWakeAt: now + sleepHours * 3600,
     owedMicros: owed.toString(),
     diary: [...state.diary, { at: situation.now, entry: d.diary, log: logName }].slice(-30),
+    conversations: [...(state.conversations || []), ...conversations].slice(-50),
     wakings: state.wakings + 1,
     meals: meals.filter((m) => m.at > now - 30 * 86400),
   });
