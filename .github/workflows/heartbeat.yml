@@ -30,7 +30,9 @@ jobs:
           BODY_ADDRESS: ${{ steps.d.outputs.body }}
           TOKEN: ${{ steps.d.outputs.token }}
           MOTH_FUND: ${{ steps.d.outputs.mothFund }}
-          CLANKER_LOCKER: "0xffA37784D619F228D8B379d287a4D7282e500762"
+          # No CLANKER_LOCKER on purpose: collectRewards swaps the CANDLE side of the fees from the
+          # Flame's wallet (the deployer), which charts label "dev sell". Every trade already sweeps
+          # the fees into the fee locker, so harvest() still gets them.
           PRICE_FEED: "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"
           MIND_KEY: ${{ secrets.MIND_KEY }}
           SEAL_KEY: ${{ secrets.SEAL_KEY }}
