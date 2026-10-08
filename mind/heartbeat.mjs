@@ -462,6 +462,8 @@ export async function heartbeat() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   heartbeat().catch((err) => {
     console.error(err);
+    // Also surface the reason as a GitHub annotation, readable without downloading the run log.
+    if (process.env.GITHUB_ACTIONS) console.log(`::error title=heartbeat failed::${String(err.shortMessage || err.message || err).replace(/\r?\n/g, " ").slice(0, 500)}`);
     process.exit(1);
   });
 }
