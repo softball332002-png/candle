@@ -463,7 +463,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   heartbeat().catch((err) => {
     console.error(err);
     // Also surface the reason as a GitHub annotation, readable without downloading the run log.
-    if (process.env.GITHUB_ACTIONS) console.log(`::error title=heartbeat failed::${String(err.shortMessage || err.message || err).replace(/\r?\n/g, " ").slice(0, 500)}`);
+    if (process.env.GITHUB_ACTIONS) {
+      const where = String(err.stack || "").split("\n").find((l) => l.includes("heartbeat.mjs")) || "";
+      const why = [err.shortMessage || err.message || err, err.info?.payload?.method, err.request?.body && Buffer.from(err.request.body).toString().slice(0, 300), err.info?.responseBody, where];
+      console.log(`::error title=heartbeat failed::${why.filter(Boolean).map(String).join(" | ").replace(/\r?\n/g, " ").slice(0, 900)}`);
+    }
     process.exit(1);
   });
 }
