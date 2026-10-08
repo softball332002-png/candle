@@ -35,8 +35,8 @@ const MODEL = env.MODEL || "claude-opus-5-5";
 const EFFORT = env.EFFORT || "medium";
 const GAS_USD_PER_TX = Number(env.GAS_USD_PER_TX || "0.003");
 const MAX_VOICES = 50;
-// Public Base RPCs cap eth_getLogs at 2,000 blocks.
-const LOG_CHUNK = Number(env.LOG_CHUNK || 1_900);
+// The public Base RPC caps eth_getLogs at 500 blocks (it was 2,000 at launch).
+const LOG_CHUNK = Number(env.LOG_CHUNK || 450);
 
 // USD per million tokens. A model not listed here (e.g. a server-side fallback) is priced as
 // claude-opus-4-8; every log records the model that actually answered, for audit.
@@ -57,6 +57,8 @@ const BODY_ABI = [
   "function bornAt() view returns (uint64)",
   "function totalEaten() view returns (uint256)",
   "function gifts(uint256) view returns (address from, uint128 amount, uint64 time, bool refused)",
+  "function voiceCount() view returns (uint256)",
+  "function giftCount() view returns (uint256)",
   "function intentions(uint256) view returns (bytes32)",
   "function say(string words, uint256 inReplyTo) returns (uint256)",
   "function metabolize(uint256 amount, bytes32 logHash)",
@@ -68,6 +70,7 @@ const BODY_ABI = [
   "function feeLocker() view returns (address)",
   "function harvest() returns (uint256)",
   "event Spoke(uint256 indexed id, address indexed from, string words)",
+  "event Ate(uint256 amount, bytes32 indexed logHash, uint256 lifeLeft)",
   "event Fed(uint256 indexed giftId, address indexed from, uint256 amount, string note)",
   "event Intended(uint256 indexed id, bytes32 commitment)",
 ];
@@ -211,6 +214,9 @@ async function think(situation) {
 
 // ---------------------------------------------------------------- the chain
 
+// Shown in the run log, and as an annotation on GitHub where the log isn't always reachable.
+const warn = (msg) => console.log(process.env.GITHUB_ACTIONS ? `::warning title=heartbeat::${msg.replace(/\r?\n/g, " ")}` : msg);
+
 // The free public Base RPC rate-limits bursts. Send one request at a time and back off when told to.
 class PatientProvider extends ethers.JsonRpcProvider {
   constructor(url) {
@@ -227,6 +233,42 @@ class PatientProvider extends ethers.JsonRpcProvider {
       }
       await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
     }
+  }
+}
+
+// Like ethers.NonceManager, but a transaction that fails before it is sent (a revert found while
+// estimating gas) doesn't use up a nonce. NonceManager did, which left a gap that the RPC then
+// answered with "replacement fee too low".
+class SequentialSigner extends ethers.AbstractSigner {
+  #nonce = null;
+  constructor(signer) {
+    super(signer.provider);
+    this.signer = signer;
+  }
+  getAddress() {
+    return this.signer.getAddress();
+  }
+  connect(provider) {
+    return new SequentialSigner(this.signer.connect(provider));
+  }
+  signTransaction(tx) {
+    return this.signer.signTransaction(tx);
+  }
+  signMessage(message) {
+    return this.signer.signMessage(message);
+  }
+  signTypedData(domain, types, value) {
+    return this.signer.signTypedData(domain, types, value);
+  }
+  reset() {
+    this.#nonce = null;
+  }
+  async sendTransaction(tx) {
+    const populated = await this.signer.populateTransaction(tx);
+    if (this.#nonce === null) this.#nonce = await this.signer.getNonce("pending");
+    const sent = await this.signer.sendTransaction({ ...populated, nonce: this.#nonce });
+    this.#nonce++;
+    return sent;
   }
 }
 
@@ -284,8 +326,8 @@ export async function heartbeat() {
     return { slept: true };
   }
 
-  // NonceManager: the provider briefly caches nonces, which breaks back-to-back transactions.
-  const wallet = new ethers.NonceManager(new ethers.Wallet(env.MIND_KEY.trim().startsWith("0x") ? env.MIND_KEY.trim() : `0x${env.MIND_KEY.trim()}`, provider));
+  // Counts nonces itself: the provider briefly caches them, which breaks back-to-back transactions.
+  const wallet = new SequentialSigner(new ethers.Wallet(env.MIND_KEY.trim().startsWith("0x") ? env.MIND_KEY.trim() : `0x${env.MIND_KEY.trim()}`, provider));
   const body = new ethers.Contract(env.BODY_ADDRESS, BODY_ABI, wallet);
 
   if ((await body.diedAt()) !== 0n) {
@@ -301,6 +343,7 @@ export async function heartbeat() {
       txs.push({ label, hash: tx.hash });
     } catch (err) {
       txs.push({ label, error: String(err.shortMessage || err.message) });
+      warn(`${label} failed: ${err.shortMessage || err.message}`);
     }
   };
 
@@ -325,13 +368,22 @@ export async function heartbeat() {
   if (life > lifeBeforeHarvest) feesInUsd = toUsd(life - lifeBeforeHarvest);
   const moths = env.MOTH_FUND ? new ethers.Contract(env.MOTH_FUND, MOTH_ABI, wallet) : null;
   const from = state.lastBlock === null ? Math.max(0, latest - LOG_CHUNK) : state.lastBlock + 1;
+  // The Body counts voices and gifts, so we know how many are new and can stop scanning once
+  // they're all found. Newest first, so a long sleep doesn't mean reading every block since.
+  const [voiceCount, giftCount] = (await Promise.all([body.voiceCount({ blockTag: latest }), body.giftCount({ blockTag: latest })])).map(Number);
+  const voicesSeen = state.voicesSeen ?? 0;
+  const giftsSeen = state.giftsSeen ?? 0;
   const voices = [];
   const gifts = [];
-  for (let start = from; start <= latest; start += LOG_CHUNK) {
-    const end = Math.min(latest, start + LOG_CHUNK - 1);
-    for (const e of await body.queryFilter("Spoke", start, end)) voices.push({ id: Number(e.args.id), from: e.args.from, words: e.args.words });
-    for (const e of await body.queryFilter("Fed", start, end)) gifts.push({ id: Number(e.args.giftId), from: e.args.from, usd: toUsd(e.args.amount), note: e.args.note });
+  for (let end = latest; end >= from && (voices.length < voiceCount - voicesSeen || gifts.length < giftCount - giftsSeen); end -= LOG_CHUNK) {
+    const start = Math.max(from, end - LOG_CHUNK + 1);
+    if (voices.length < voiceCount - voicesSeen)
+      for (const e of await body.queryFilter("Spoke", start, end)) voices.push({ id: Number(e.args.id), from: e.args.from, words: e.args.words });
+    if (gifts.length < giftCount - giftsSeen)
+      for (const e of await body.queryFilter("Fed", start, end)) gifts.push({ id: Number(e.args.giftId), from: e.args.from, usd: toUsd(e.args.amount), note: e.args.note });
   }
+  voices.sort((a, b) => a.id - b.id);
+  gifts.sort((a, b) => a.id - b.id);
 
   const sealed = readJson(SEALED, []);
   const starving = life < floor;
@@ -431,8 +483,29 @@ export async function heartbeat() {
   const logBytes = Buffer.from(JSON.stringify(log, null, 2) + "\n");
   fs.writeFileSync(path.join(LOGS, logName), logBytes);
   const logHash = ethers.keccak256(logBytes);
-  if (allowance > 0n) {
-    await body.metabolize(allowance, logHash).then((tx) => tx.wait());
+  // The public RPC sometimes rejects a transaction it already has ("replacement fee too low").
+  // So if the meal fails, check whether it landed anyway, then retry once with a fresh nonce.
+  // If it still fails, the debt stays in owedMicros and is paid at the next waking.
+  const eat = async () => {
+    try {
+      await body.metabolize(allowance, logHash).then((tx) => tx.wait());
+      return true;
+    } catch (err) {
+      warn(`meal failed, checking whether it landed: ${err.shortMessage || err.message}`);
+    }
+    await new Promise((r) => setTimeout(r, 15_000));
+    const head = await provider.getBlockNumber();
+    if ((await body.queryFilter(body.filters.Ate(null, logHash), head - LOG_CHUNK, head)).length) return true;
+    wallet.reset();
+    try {
+      await body.metabolize(allowance, logHash).then((tx) => tx.wait());
+      return true;
+    } catch (err) {
+      warn(`meal failed again, carrying the debt to the next waking: ${err.shortMessage || err.message}`);
+      return false;
+    }
+  };
+  if (allowance > 0n && (await eat())) {
     const paid = usdToMicros(toUsd(allowance));
     owed = owed > paid ? owed - paid : 0n;
     meals.push({ at: now, usd: toUsd(allowance) });
@@ -447,6 +520,8 @@ export async function heartbeat() {
   const sleepHours = Math.min(72, Math.max(1, d.sleepHours || 6));
   writeJson(STATE, {
     lastBlock: latest,
+    voicesSeen: voiceCount,
+    giftsSeen: giftCount,
     nextWakeAt: now + sleepHours * 3600,
     owedMicros: owed.toString(),
     diary: [...state.diary, { at: situation.now, entry: d.diary, log: logName }].slice(-30),
@@ -462,6 +537,12 @@ export async function heartbeat() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   heartbeat().catch((err) => {
     console.error(err);
+    // Also surface the reason as a GitHub annotation, readable without downloading the run log.
+    if (process.env.GITHUB_ACTIONS) {
+      const where = String(err.stack || "").split("\n").find((l) => l.includes("heartbeat.mjs")) || "";
+      const why = [err.shortMessage || err.message || err, err.info?.payload?.method, err.request?.body && Buffer.from(err.request.body).toString().slice(0, 300), err.info?.responseBody, where];
+      console.log(`::error title=heartbeat failed::${why.filter(Boolean).map(String).join(" | ").replace(/\r?\n/g, " ").slice(0, 900)}`);
+    }
     process.exit(1);
   });
 }
