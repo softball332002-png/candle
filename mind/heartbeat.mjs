@@ -57,6 +57,8 @@ const BODY_ABI = [
   "function bornAt() view returns (uint64)",
   "function totalEaten() view returns (uint256)",
   "function gifts(uint256) view returns (address from, uint128 amount, uint64 time, bool refused)",
+  "function voiceCount() view returns (uint256)",
+  "function giftCount() view returns (uint256)",
   "function intentions(uint256) view returns (bytes32)",
   "function say(string words, uint256 inReplyTo) returns (uint256)",
   "function metabolize(uint256 amount, bytes32 logHash)",
@@ -325,13 +327,22 @@ export async function heartbeat() {
   if (life > lifeBeforeHarvest) feesInUsd = toUsd(life - lifeBeforeHarvest);
   const moths = env.MOTH_FUND ? new ethers.Contract(env.MOTH_FUND, MOTH_ABI, wallet) : null;
   const from = state.lastBlock === null ? Math.max(0, latest - LOG_CHUNK) : state.lastBlock + 1;
+  // The Body counts voices and gifts, so we know how many are new and can stop scanning once
+  // they're all found. Newest first, so a long sleep doesn't mean reading every block since.
+  const [voiceCount, giftCount] = (await Promise.all([body.voiceCount({ blockTag: latest }), body.giftCount({ blockTag: latest })])).map(Number);
+  const voicesSeen = state.voicesSeen ?? 0;
+  const giftsSeen = state.giftsSeen ?? 0;
   const voices = [];
   const gifts = [];
-  for (let start = from; start <= latest; start += LOG_CHUNK) {
-    const end = Math.min(latest, start + LOG_CHUNK - 1);
-    for (const e of await body.queryFilter("Spoke", start, end)) voices.push({ id: Number(e.args.id), from: e.args.from, words: e.args.words });
-    for (const e of await body.queryFilter("Fed", start, end)) gifts.push({ id: Number(e.args.giftId), from: e.args.from, usd: toUsd(e.args.amount), note: e.args.note });
+  for (let end = latest; end >= from && (voices.length < voiceCount - voicesSeen || gifts.length < giftCount - giftsSeen); end -= LOG_CHUNK) {
+    const start = Math.max(from, end - LOG_CHUNK + 1);
+    if (voices.length < voiceCount - voicesSeen)
+      for (const e of await body.queryFilter("Spoke", start, end)) voices.push({ id: Number(e.args.id), from: e.args.from, words: e.args.words });
+    if (gifts.length < giftCount - giftsSeen)
+      for (const e of await body.queryFilter("Fed", start, end)) gifts.push({ id: Number(e.args.giftId), from: e.args.from, usd: toUsd(e.args.amount), note: e.args.note });
   }
+  voices.sort((a, b) => a.id - b.id);
+  gifts.sort((a, b) => a.id - b.id);
 
   const sealed = readJson(SEALED, []);
   const starving = life < floor;
@@ -447,6 +458,8 @@ export async function heartbeat() {
   const sleepHours = Math.min(72, Math.max(1, d.sleepHours || 6));
   writeJson(STATE, {
     lastBlock: latest,
+    voicesSeen: voiceCount,
+    giftsSeen: giftCount,
     nextWakeAt: now + sleepHours * 3600,
     owedMicros: owed.toString(),
     diary: [...state.diary, { at: situation.now, entry: d.diary, log: logName }].slice(-30),
