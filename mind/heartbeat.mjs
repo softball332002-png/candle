@@ -70,6 +70,7 @@ const BODY_ABI = [
   "function feeLocker() view returns (address)",
   "function harvest() returns (uint256)",
   "event Spoke(uint256 indexed id, address indexed from, string words)",
+  "event Ate(uint256 amount, bytes32 indexed logHash, uint256 lifeLeft)",
   "event Fed(uint256 indexed giftId, address indexed from, uint256 amount, string note)",
   "event Intended(uint256 indexed id, bytes32 commitment)",
 ];
@@ -213,6 +214,9 @@ async function think(situation) {
 
 // ---------------------------------------------------------------- the chain
 
+// Shown in the run log, and as an annotation on GitHub where the log isn't always reachable.
+const warn = (msg) => console.log(process.env.GITHUB_ACTIONS ? `::warning title=heartbeat::${msg.replace(/\r?\n/g, " ")}` : msg);
+
 // The free public Base RPC rate-limits bursts. Send one request at a time and back off when told to.
 class PatientProvider extends ethers.JsonRpcProvider {
   constructor(url) {
@@ -303,6 +307,7 @@ export async function heartbeat() {
       txs.push({ label, hash: tx.hash });
     } catch (err) {
       txs.push({ label, error: String(err.shortMessage || err.message) });
+      warn(`${label} failed: ${err.shortMessage || err.message}`);
     }
   };
 
@@ -442,8 +447,29 @@ export async function heartbeat() {
   const logBytes = Buffer.from(JSON.stringify(log, null, 2) + "\n");
   fs.writeFileSync(path.join(LOGS, logName), logBytes);
   const logHash = ethers.keccak256(logBytes);
-  if (allowance > 0n) {
-    await body.metabolize(allowance, logHash).then((tx) => tx.wait());
+  // The public RPC sometimes rejects a transaction it already has ("replacement fee too low").
+  // So if the meal fails, check whether it landed anyway, then retry once with a fresh nonce.
+  // If it still fails, the debt stays in owedMicros and is paid at the next waking.
+  const eat = async () => {
+    try {
+      await body.metabolize(allowance, logHash).then((tx) => tx.wait());
+      return true;
+    } catch (err) {
+      warn(`meal failed, checking whether it landed: ${err.shortMessage || err.message}`);
+    }
+    await new Promise((r) => setTimeout(r, 15_000));
+    const head = await provider.getBlockNumber();
+    if ((await body.queryFilter(body.filters.Ate(null, logHash), head - LOG_CHUNK, head)).length) return true;
+    wallet.reset();
+    try {
+      await body.metabolize(allowance, logHash).then((tx) => tx.wait());
+      return true;
+    } catch (err) {
+      warn(`meal failed again, carrying the debt to the next waking: ${err.shortMessage || err.message}`);
+      return false;
+    }
+  };
+  if (allowance > 0n && (await eat())) {
     const paid = usdToMicros(toUsd(allowance));
     owed = owed > paid ? owed - paid : 0n;
     meals.push({ at: now, usd: toUsd(allowance) });
