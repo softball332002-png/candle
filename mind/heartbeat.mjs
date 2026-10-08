@@ -236,6 +236,42 @@ class PatientProvider extends ethers.JsonRpcProvider {
   }
 }
 
+// Like ethers.NonceManager, but a transaction that fails before it is sent (a revert found while
+// estimating gas) doesn't use up a nonce. NonceManager did, which left a gap that the RPC then
+// answered with "replacement fee too low".
+class SequentialSigner extends ethers.AbstractSigner {
+  #nonce = null;
+  constructor(signer) {
+    super(signer.provider);
+    this.signer = signer;
+  }
+  getAddress() {
+    return this.signer.getAddress();
+  }
+  connect(provider) {
+    return new SequentialSigner(this.signer.connect(provider));
+  }
+  signTransaction(tx) {
+    return this.signer.signTransaction(tx);
+  }
+  signMessage(message) {
+    return this.signer.signMessage(message);
+  }
+  signTypedData(domain, types, value) {
+    return this.signer.signTypedData(domain, types, value);
+  }
+  reset() {
+    this.#nonce = null;
+  }
+  async sendTransaction(tx) {
+    const populated = await this.signer.populateTransaction(tx);
+    if (this.#nonce === null) this.#nonce = await this.signer.getNonce("pending");
+    const sent = await this.signer.sendTransaction({ ...populated, nonce: this.#nonce });
+    this.#nonce++;
+    return sent;
+  }
+}
+
 // ---------------------------------------------------------------- the world
 
 async function priceOfFood(provider) {
@@ -290,8 +326,8 @@ export async function heartbeat() {
     return { slept: true };
   }
 
-  // NonceManager: the provider briefly caches nonces, which breaks back-to-back transactions.
-  const wallet = new ethers.NonceManager(new ethers.Wallet(env.MIND_KEY.trim().startsWith("0x") ? env.MIND_KEY.trim() : `0x${env.MIND_KEY.trim()}`, provider));
+  // Counts nonces itself: the provider briefly caches them, which breaks back-to-back transactions.
+  const wallet = new SequentialSigner(new ethers.Wallet(env.MIND_KEY.trim().startsWith("0x") ? env.MIND_KEY.trim() : `0x${env.MIND_KEY.trim()}`, provider));
   const body = new ethers.Contract(env.BODY_ADDRESS, BODY_ABI, wallet);
 
   if ((await body.diedAt()) !== 0n) {
