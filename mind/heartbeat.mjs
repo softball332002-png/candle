@@ -35,8 +35,8 @@ const MODEL = env.MODEL || "claude-opus-5-5";
 const EFFORT = env.EFFORT || "medium";
 const GAS_USD_PER_TX = Number(env.GAS_USD_PER_TX || "0.003");
 const MAX_VOICES = 50;
-// Public Base RPCs cap eth_getLogs at 2,000 blocks.
-const LOG_CHUNK = Number(env.LOG_CHUNK || 1_900);
+// The public Base RPC caps eth_getLogs at 500 blocks (it was 2,000 at launch).
+const LOG_CHUNK = Number(env.LOG_CHUNK || 450);
 
 // USD per million tokens. A model not listed here (e.g. a server-side fallback) is priced as
 // claude-opus-4-8; every log records the model that actually answered, for audit.
