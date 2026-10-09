@@ -16,6 +16,7 @@
 //   CLANKER_LOCKER  Clanker LP locker; collectRewards(TOKEN) is called before harvesting
 //   MOTH_FUND    the Moth Fund address (enables awards)
 //   MARKET_DATA=0  skip the DexScreener lookup
+//   BSC_RPC_URL, SOLANA_RPC_URL  read the Flame's wallets on the other wicks (public defaults)
 
 import fs from "node:fs";
 import path from "node:path";
@@ -30,6 +31,7 @@ const home = env.CANDLE_HOME || root;
 const STATE = path.join(home, "state", "state.json");
 const SEALED = path.join(home, "state", "sealed.json");
 const LOGS = path.join(home, "logs");
+const WICKS = path.join(root, "deployments", "wicks.json");
 
 const MODEL = env.MODEL || "claude-opus-5-5";
 const EFFORT = env.EFFORT || "medium";
@@ -304,6 +306,64 @@ async function marketData() {
   }
 }
 
+// The other wicks: CANDLE coins on other chains, listed in deployments/wicks.json, whose fees also
+// feed the Flame. They are separate coins. Their fees collect in the Flame's wallets on those chains
+// and are not part of the Body's life until they are moved to Base.
+const SOL_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+
+async function getJson(url, init) {
+  const res = await fetch(url, { ...init, signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function wickMarket(chain, token) {
+  const pairs = ((await getJson(`https://api.dexscreener.com/latest/dex/tokens/${token}`)).pairs || []).filter((p) => p.chainId === chain);
+  if (!pairs.length) return { note: "no market data yet (still on the launchpad's bonding curve, or not indexed)" };
+  const p = pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+  return { priceUsd: Number(p.priceUsd), marketCapUsd: p.marketCap ?? p.fdv, liquidityUsd: p.liquidity?.usd, volumeUsd: p.volume, txns24h: p.txns?.h24, dex: p.dexId };
+}
+
+async function flameWalletOn(chain, address, prices) {
+  if (chain === "bsc") {
+    const bsc = new ethers.JsonRpcProvider(env.BSC_RPC_URL || "https://bsc-dataseed.bnbchain.org", 56, { staticNetwork: true });
+    const [bnb, wbnb] = await Promise.all([bsc.getBalance(address), new ethers.Contract(WBNB, ["function balanceOf(address) view returns (uint256)"], bsc).balanceOf(address)]);
+    const amount = Number(ethers.formatEther(bnb + wbnb));
+    return { holds: `${amount.toFixed(6)} BNB`, usd: prices.bnb ? Math.round(amount * prices.bnb * 100) / 100 : null };
+  }
+  if (chain === "solana") {
+    const rpc = (method, params) => getJson(env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+    const [sol, usdc] = await Promise.all([rpc("getBalance", [address]), rpc("getTokenAccountsByOwner", [address, { mint: SOL_USDC }, { encoding: "jsonParsed" }])]);
+    const solAmount = (sol.result?.value || 0) / 1e9;
+    const usdcAmount = (usdc.result?.value || []).reduce((a, acc) => a + Number(acc.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
+    return { holds: `${solAmount.toFixed(4)} SOL + ${usdcAmount.toFixed(2)} USDC`, usd: prices.sol ? Math.round((solAmount * prices.sol + usdcAmount) * 100) / 100 : null };
+  }
+  return undefined;
+}
+
+export async function otherWicks() {
+  if (!fs.existsSync(WICKS)) return undefined;
+  const live = readJson(WICKS, { wicks: [] }).wicks.filter((w) => w.token && w.chain !== "base");
+  if (!live.length) return undefined;
+  const prices = await getJson("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin,solana&vs_currencies=usd")
+    .then((p) => ({ bnb: p.binancecoin?.usd, sol: p.solana?.usd }))
+    .catch(() => ({}));
+  return Promise.all(
+    live.map(async (w) => ({
+      chain: w.chain,
+      name: w.name,
+      launchpad: w.launchpad,
+      token: w.token,
+      fees: w.fees,
+      market: env.MARKET_DATA === "0" ? undefined : await wickMarket(w.chain, w.token).catch((err) => ({ note: `market data unavailable (${err.message})` })),
+      yourWalletThere: w.flameWallet
+        ? await flameWalletOn(w.chain, w.flameWallet, prices).catch((err) => ({ note: `wallet unreadable (${err.message})` }))
+        : { note: "no Flame wallet set for this wick yet" },
+    })),
+  );
+}
+
 // How brightly it burns: days of life left at the past week's burn rate.
 function flame({ lifeUsd, starving, meals, now }) {
   const week = meals.filter((m) => m.at > now - 7 * 86400);
@@ -400,6 +460,7 @@ export async function heartbeat() {
     flame: flame({ lifeUsd, starving, meals, now }),
     tradingFeesEatenSinceLastWakingUsd: Math.round(feesInUsd * 1e4) / 1e4,
     market: await marketData(),
+    otherWicks: await otherWicks(),
     mothFund: moths ? { balanceUsd: toUsd(await moths.balance()), maxPerAwardUsd: toUsd(await moths.maxPerAward()) } : undefined,
     owedForPastThoughtsUsd: microsToUsd(BigInt(state.owedMicros)),
     yourRecentDiary: state.diary.slice(-5),

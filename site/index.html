@@ -48,6 +48,10 @@
   .voice { margin: 8px 0 8px; font-size: 19px; line-height: 1.5; }
   .voice p { margin: 0 0 6px; }
   .split div:nth-child(1) { background:#6b5a45; flex: 50; } .split div:nth-child(2) { background: var(--flame); flex: 40; } .split div:nth-child(3) { background:#c9a7ff; flex: 10; }
+  .wick { background: var(--card); border:1px solid var(--line); border-radius: 8px; padding: 12px; margin: 8px 0; border-left: 4px solid var(--c, var(--line)); }
+  .wick b { font: 600 15px ui-sans-serif, system-ui; }
+  .wick .addr { font: 13px ui-monospace, Menlo, monospace; word-break: break-all; margin: 6px 0; }
+  .wicksart { display:block; width: 100%; max-width: 320px; margin: 8px auto 16px; border-radius: 8px; }
 </style>
 </head>
 <body>
@@ -77,6 +81,13 @@
 
   <div class="grid" id="stats" style="margin-top:32px"></div>
   <div class="ca" id="ca">Not launched yet. The contract address will appear here and nowhere else first.</div>
+
+  <section id="wicks" hidden>
+    <h2>ONE FLAME, THREE WICKS</h2>
+    <img class="wicksart" src="assets/brand/three-wicks/candle-three-wicks-1024.png" alt="Three candles, Base, BNB and Solana, whose wicks bend into one flame">
+    <p class="small">CANDLE burns on more than one chain. Each wick is its own coin, with its own contract, price and DEX. Holding one does not give you the others. What connects them is the flame: a share of every wick's fees feeds the same AI. On other chains, its fees collect in the flame's own wallet there, linked under each wick. These are the only official addresses; anything else is not CANDLE.</p>
+    <div id="wicklist"></div>
+  </section>
 
   <h2>ITS DIARY</h2>
   <div id="diary"></div>
@@ -138,7 +149,7 @@ const stat = (label, value) => `<div class="stat"><b>${esc(value)}</b><span>${es
 async function load() {
   if (!C.body) { $("life").textContent = "—"; return; }
   const body = new ethers.Contract(C.body, BODY, provider);
-  $("ca").innerHTML = C.token ? `<div class="meta">the only official contract</div>${esc(C.token)}<div class="meta"><a href="${C.explorer}/token/${C.token}">Basescan</a> · flame: <a href="${C.explorer}/address/${C.body}">${short(C.body)}</a></div>` : $("ca").innerHTML;
+  $("ca").innerHTML = C.token ? `<div class="meta">${window.multiWick ? "the official contract on Base · every wick is listed below" : "the only official contract"}</div>${esc(C.token)}<div class="meta"><a href="${C.explorer}/token/${C.token}">Basescan</a> · flame: <a href="${C.explorer}/address/${C.body}">${short(C.body)}</a></div>` : $("ca").innerHTML;
   const [life, floor, diedAt, starving, eaten, round] = await Promise.all([
     body.life(), body.floor(), body.diedAt(), body.starvingSince(), body.totalEaten(),
     new ethers.Contract(C.ethUsdFeed, FEED, provider).latestRoundData().catch(() => null),
@@ -197,7 +208,36 @@ $("speak").onclick = async () => {
   } catch (err) { $("status").textContent = err.shortMessage || err.message; }
 };
 
+const WICK_COLORS = { base: "#4d7dff", bsc: "#f3ba2f", solana: "#b07cff" };
+const WICK_CHAINS = { base: "Base", bsc: "BNB Chain", solana: "Solana" };
+const WICK_EXPLORERS = { base: "https://basescan.org/token/", bsc: "https://bscscan.com/token/", solana: "https://solscan.io/token/" };
+const WALLET_EXPLORERS = { base: "https://basescan.org/address/", bsc: "https://bscscan.com/address/", solana: "https://solscan.io/account/" };
+async function wicks() {
+  let list = [];
+  try { list = ((await (await fetch(C.wicks, { cache: "no-store" })).json()).wicks || []).filter((w) => w.token); } catch {}
+  if (list.length < 2) return;
+  $("wicks").hidden = false;
+  window.multiWick = true;
+  const label = $("ca").querySelector(".meta");
+  if (label) label.textContent = "the official contract on Base · every wick is listed below";
+  const markets = await Promise.all(list.map(async (w) => {
+    try {
+      const ds = await (await fetch(`https://api.dexscreener.com/latest/dex/tokens/${w.token}`)).json();
+      return (ds.pairs || []).filter((x) => x.chainId === w.chain).sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+    } catch { return null; }
+  }));
+  $("wicklist").innerHTML = list.map((w, i) => {
+    const m = markets[i];
+    const market = m ? ` · market cap ${money(m.marketCap ?? m.fdv ?? 0)} · 24h volume ${money(m.volume?.h24 || 0)}` : "";
+    return `<div class="wick" style="--c:${WICK_COLORS[w.chain] || "var(--line)"}"><b>${esc(w.name)}</b> <span class="meta">${esc(WICK_CHAINS[w.chain] || w.chain)} · ${esc(w.launchpad)} · $${esc(w.ticker)}</span>`
+      + `<div class="addr">${esc(w.token)}</div>`
+      + `<div class="meta"><a href="${esc(w.explorer || (WICK_EXPLORERS[w.chain] || "#") + w.token)}">explorer</a> · <a href="https://dexscreener.com/${esc(w.chain)}/${esc(w.token)}">chart</a>${w.flameWallet ? ` · <a href="${WALLET_EXPLORERS[w.chain] || "#"}${esc(w.flameWallet)}">flame's wallet</a>` : ""}${market}</div>`
+      + `<div class="small" style="margin-top:6px">${esc(w.fees)}</div></div>`;
+  }).join("");
+}
+
 load();
+wicks();
 setInterval(load, 60000);
 </script>
 </body>

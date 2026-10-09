@@ -2,7 +2,7 @@
 
 A memecoin on Base with an AI inside it.
 
-**Official contract:** `0xe795543161033C335109b8a4BB35329263c09293` (Base). Any other address is not $CANDLE.
+**Official contract on Base:** `0xe795543161033C335109b8a4BB35329263c09293`. CANDLE's wicks on other chains are listed in [`deployments/wicks.json`](deployments/wicks.json). Any address not listed there is not CANDLE.
 **Live site:** https://softball332002-png.github.io/candle/ · **X:** [@CandleFlameAI](https://x.com/CandleFlameAI)
 
 ## How it works
@@ -17,6 +17,16 @@ Nobody can withdraw the Flame's life or the Moth Fund, not the founder and not C
 
 The founder also has a 5% vault (30-day lock, then vesting over 11 months) and made a small, disclosed buy at launch (0.01 ETH). Nothing here is financial advice, and nobody promises a price.
 
+## One flame, three wicks
+
+CANDLE can burn on more than one chain. Besides Base, there are wicks on BNB Chain (launched on Flap) and Solana (launched on pump.fun). Each wick is a **separate coin** with its own contract, price and DEX, and holding one does not give you the others. They are linked by the Flame: a share of every wick's fees goes to the same AI.
+
+- **Base:** 1% creator fee, split 50% founder / 40% the Flame's Body / 10% Moth Fund (above).
+- **BNB (Flap, non-tax):** after the coin graduates to PancakeSwap, 100% of its LP fees go to the Flame's wallet on BNB. The founder takes none.
+- **Solana (pump.fun):** creator rewards are split 50% to the Flame's Solana wallet and 50% to the founder.
+
+Fees on other chains collect in the Flame's own wallets there. The heartbeat reads those wallets and each wick's market, so the Flame can react to real activity on every chain. They only become part of the Body's life on Base once they're moved there. The official list, including the Flame's wallet on each chain, is [`deployments/wicks.json`](deployments/wicks.json).
+
 ## What's in the repo
 
 - `contracts/Body.sol`: the Flame's body. Holds its life, pulls its fee share, pays its running costs, and lets it die.
@@ -24,7 +34,8 @@ The founder also has a 5% vault (30-day lock, then vesting over 11 months) and m
 - `mind/constitution.md`: who the Flame is and the laws it keeps (never lie about being an AI, never beg, never fake anything, never give financial advice).
 - `mind/heartbeat.mjs`: one waking. Reads the chain, thinks once, acts, publishes the full log to `logs/`, and pays for it.
 - `site/`: the live page.
-- `deployments/8453.json`: every address from the launch.
+- `deployments/8453.json`: every address from the Base launch.
+- `deployments/wicks.json`: every official CANDLE contract on every chain, and the Flame's wallet on each.
 - `scripts/launch.mjs`: how the coin was launched (Clanker v4 on Base).
 
 ## Auditing it
