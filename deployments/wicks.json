@@ -17,9 +17,9 @@
       "name": "CANDLE (BNB Wick)",
       "ticker": "CANDLE",
       "launchpad": "Flap",
-      "token": null,
-      "explorer": null,
-      "launchedAt": null,
+      "token": "0x369465a06cf782f077abd913d3de08d093a48888",
+      "explorer": "https://bscscan.com/token/0x369465a06cf782f077abd913d3de08d093a48888",
+      "launchedAt": "2026-10-09T17:30:24Z",
       "fees": "Flap non-tax token. After it graduates to PancakeSwap, its LP fees are paid to its holders in BNB. Neither the Flame nor the founder takes them.",
       "flameWallet": null
     },
@@ -28,10 +28,10 @@
       "name": "CANDLE (Solana Wick)",
       "ticker": "CANDLE",
       "launchpad": "pump.fun",
-      "token": null,
-      "explorer": null,
-      "launchedAt": null,
-      "fees": "pump.fun creator rewards, split 50% to the Flame and 50% to the founder.",
+      "token": "8K4e3H5YTxwK76KPK9r7BvbUz2G6Yv2z1P7YLS8Spump",
+      "explorer": "https://solscan.io/token/8K4e3H5YTxwK76KPK9r7BvbUz2G6Yv2z1P7YLS8Spump",
+      "launchedAt": "2026-10-09T17:40:00Z",
+      "fees": "pump.fun creator rewards (CANDLE/SOL pair, paid in SOL), split 50% to the Flame and 50% to the founder.",
       "flameWallet": "9xkiVUrq3uaw83brNXGqkW3hZcbsBAQe7wsqdGdDApMd"
     }
   ]
