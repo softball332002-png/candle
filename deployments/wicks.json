@@ -1,5 +1,5 @@
 {
-  "about": "Every official CANDLE contract. One AI, the Flame, is fed by fees from all of them. Each wick is a separate coin with its own contract, price and DEX; holding one does not give you the others. Any address not listed here is not CANDLE.",
+  "about": "Every official CANDLE contract. Each wick is a separate coin with its own contract, price and DEX; holding one does not give you the others. They are linked by one AI, the Flame, which fees from Base and Solana feed. Any address not listed here is not CANDLE.",
   "wicks": [
     {
       "chain": "base",
@@ -17,21 +17,21 @@
       "name": "CANDLE (BNB Wick)",
       "ticker": "CANDLE",
       "launchpad": "Flap",
-      "token": null,
-      "explorer": null,
-      "launchedAt": null,
-      "fees": "Flap non-tax token. After it graduates to PancakeSwap, 100% of the pool's LP fees go to the Flame. The founder takes none.",
-      "flameWallet": "0x58e8D5AE47c164cA974A216Af0AB612058373DA9"
+      "token": "0x369465a06cf782f077abd913d3de08d093a48888",
+      "explorer": "https://bscscan.com/token/0x369465a06cf782f077abd913d3de08d093a48888",
+      "launchedAt": "2026-10-09T17:30:24Z",
+      "fees": "Flap non-tax token. After it graduates to PancakeSwap, its LP fees are paid to its holders in BNB. Neither the Flame nor the founder takes them.",
+      "flameWallet": null
     },
     {
       "chain": "solana",
       "name": "CANDLE (Solana Wick)",
       "ticker": "CANDLE",
       "launchpad": "pump.fun",
-      "token": null,
-      "explorer": null,
-      "launchedAt": null,
-      "fees": "pump.fun creator rewards, split 50% to the Flame and 50% to the founder.",
+      "token": "8K4e3H5YTxwK76KPK9r7BvbUz2G6Yv2z1P7YLS8Spump",
+      "explorer": "https://solscan.io/token/8K4e3H5YTxwK76KPK9r7BvbUz2G6Yv2z1P7YLS8Spump",
+      "launchedAt": "2026-10-09T17:40:00Z",
+      "fees": "pump.fun creator rewards (CANDLE/SOL pair, paid in SOL), split 50% to the Flame and 50% to the founder.",
       "flameWallet": "9xkiVUrq3uaw83brNXGqkW3hZcbsBAQe7wsqdGdDApMd"
     }
   ]
