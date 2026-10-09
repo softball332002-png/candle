@@ -1,5 +1,5 @@
 {
-  "about": "Every official CANDLE contract. One AI, the Flame, is fed by fees from all of them. Each wick is a separate coin with its own contract, price and DEX; holding one does not give you the others. Any address not listed here is not CANDLE.",
+  "about": "Every official CANDLE contract. Each wick is a separate coin with its own contract, price and DEX; holding one does not give you the others. They are linked by one AI, the Flame, which fees from Base and Solana feed. Any address not listed here is not CANDLE.",
   "wicks": [
     {
       "chain": "base",
@@ -20,8 +20,8 @@
       "token": null,
       "explorer": null,
       "launchedAt": null,
-      "fees": "Flap non-tax token. After it graduates to PancakeSwap, 100% of the pool's LP fees go to the Flame. The founder takes none.",
-      "flameWallet": "0x58e8D5AE47c164cA974A216Af0AB612058373DA9"
+      "fees": "Flap non-tax token. After it graduates to PancakeSwap, its LP fees are paid to its holders in BNB. Neither the Flame nor the founder takes them.",
+      "flameWallet": null
     },
     {
       "chain": "solana",

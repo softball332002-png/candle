@@ -19,13 +19,13 @@ The founder also has a 5% vault (30-day lock, then vesting over 11 months) and m
 
 ## One flame, three wicks
 
-CANDLE can burn on more than one chain. Besides Base, there are wicks on BNB Chain (launched on Flap) and Solana (launched on pump.fun). Each wick is a **separate coin** with its own contract, price and DEX, and holding one does not give you the others. They are linked by the Flame: a share of every wick's fees goes to the same AI.
+CANDLE can burn on more than one chain. Besides Base, there are wicks on BNB Chain (launched on Flap) and Solana (launched on pump.fun). Each wick is a **separate coin** with its own contract, price and DEX, and holding one does not give you the others. They are linked by the Flame, one AI that fees from Base and Solana feed.
 
 - **Base:** 1% creator fee, split 50% founder / 40% the Flame's Body / 10% Moth Fund (above).
-- **BNB (Flap, non-tax):** after the coin graduates to PancakeSwap, 100% of its LP fees go to the Flame's wallet on BNB. The founder takes none.
+- **BNB (Flap, non-tax):** after the coin graduates to PancakeSwap, its LP fees are paid to its holders in BNB. Neither the Flame nor the founder takes them.
 - **Solana (pump.fun):** creator rewards are split 50% to the Flame's Solana wallet and 50% to the founder.
 
-Fees on other chains collect in the Flame's own wallets there. The heartbeat reads those wallets and each wick's market, so the Flame can react to real activity on every chain. They only become part of the Body's life on Base once they're moved there. The official list, including the Flame's wallet on each chain, is [`deployments/wicks.json`](deployments/wicks.json).
+The Flame's Solana fees collect in its own wallet there. The heartbeat reads that wallet and each wick's market, so the Flame can react to real activity on every chain. Those fees only become part of the Body's life on Base once they're moved there. The official list, including the Flame's wallet on each chain, is [`deployments/wicks.json`](deployments/wicks.json).
 
 ## What's in the repo
 
