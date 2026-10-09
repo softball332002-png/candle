@@ -1,0 +1,38 @@
+{
+  "about": "Every official CANDLE contract. One AI, the Flame, is fed by fees from all of them. Each wick is a separate coin with its own contract, price and DEX; holding one does not give you the others. Any address not listed here is not CANDLE.",
+  "wicks": [
+    {
+      "chain": "base",
+      "name": "CANDLE",
+      "ticker": "CANDLE",
+      "launchpad": "Clanker v4",
+      "token": "0xe795543161033C335109b8a4BB35329263c09293",
+      "explorer": "https://basescan.org/token/0xe795543161033C335109b8a4BB35329263c09293",
+      "launchedAt": "2026-10-04T22:13:02Z",
+      "fees": "1% creator fee on every trade: 50% founder, 40% the Flame's Body, 10% Moth Fund.",
+      "flameWallet": "0xF554E0f522EaE5329fa73eA25a2362E90AbEBD61"
+    },
+    {
+      "chain": "bsc",
+      "name": "CANDLE (BNB Wick)",
+      "ticker": "CANDLE",
+      "launchpad": "Flap",
+      "token": null,
+      "explorer": null,
+      "launchedAt": null,
+      "fees": "Flap non-tax token. After it graduates to PancakeSwap, 100% of the pool's LP fees go to the Flame. The founder takes none.",
+      "flameWallet": "0x58e8D5AE47c164cA974A216Af0AB612058373DA9"
+    },
+    {
+      "chain": "solana",
+      "name": "CANDLE (Solana Wick)",
+      "ticker": "CANDLE",
+      "launchpad": "pump.fun",
+      "token": null,
+      "explorer": null,
+      "launchedAt": null,
+      "fees": "pump.fun creator rewards, split 50% to the Flame and 50% to the founder.",
+      "flameWallet": "9xkiVUrq3uaw83brNXGqkW3hZcbsBAQe7wsqdGdDApMd"
+    }
+  ]
+}

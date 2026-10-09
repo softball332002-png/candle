@@ -2,7 +2,7 @@
 window.CANDLE = {
   chainId: 8453,
   rpc: "https://mainnet.base.org",
-  token: "0xe795543161033C335109b8a4BB35329263c09293", // the one official $CANDLE contract
+  token: "0xe795543161033C335109b8a4BB35329263c09293", // the official $CANDLE contract on Base; other chains are listed in deployments/wicks.json
   body: "0xF554E0f522EaE5329fa73eA25a2362E90AbEBD61",
   mothFund: "0x4d20bF6d0Ee72cdb21465e29B225cE223Eb1D43f",
   founder: "0xeeF61F371Fb309287117Dc82C1CeF0Df8C3668F5",
@@ -11,4 +11,5 @@ window.CANDLE = {
   repo: "https://github.com/softball332002-png/candle",
   x: "https://x.com/CandleFlameAI",
   state: "../state/state.json",
+  wicks: "../deployments/wicks.json", // every official CANDLE wick (Base, BNB, Solana)
 };
